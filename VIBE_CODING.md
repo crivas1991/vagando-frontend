@@ -48,6 +48,7 @@ Para cada paso se registran:
 | 7 | Paso 6 | `eae45a7` | `feat(countries): agregar feature de países, /api/countries y página de inicio` | Feature `countries` con REST Countries v5 cacheada, `/api/countries`, inicio real, `unstable_rethrow`, contenedor al 80% y hover verde oscuro |
 | 8 | Paso 7 | `c017873` | `feat(countries): agregar página /explore con búsqueda y filtro por población` | `useCountrySearch` (debounce, AbortController, `isLoading` derivado), `CountrySearch`, `/explore`, `fetchApi` |
 | 9 | Paso 8 | `5d8b438` | `feat(weather): agregar clima, /api/weather y detalle de país con degradación elegante` | Feature `weather`, `/api/weather`, `/country/[code]` con clima en `<Suspense>` y degradación elegante |
+| 10 | Paso 9 | `6798508` | `feat(places): agregar lugares turísticos con Geoapify y /country/[code]/places` | Feature `places`, `/api/places`, página de lugares y fix de errores dentro de `'use cache'` (`CachedResult`) |
 
 > Esta tabla se actualiza con cada commit nuevo. Como un commit no puede contener su propio hash, después de cada commit de funcionalidad se hace un commit `docs(vibe): ...` que registra el hash. Esos commits de registro no se listan en esta tabla.
 
@@ -811,11 +812,11 @@ c017873 feat(countries): agregar página /explore con búsqueda y filtro por pob
 - [x] `/api/places`: las 5 categorías, categoría por defecto y errores 400 (categoría inválida, lat fuera de rango o faltante)
 - [x] Key inválida → 502 con mensaje amigable, sin exponer la key
 - [x] Link "Ver lugares turísticos" desde el detalle del país
-- [ ] Prueba en el navegador: filtro de categorías, estado vacío, imagen de respaldo y Offline → error con "Reintentar" *(la realiza el desarrollador)*
+- [x] Prueba en el navegador: filtro de categorías, estado vacío, imagen de respaldo y Offline → error con "Reintentar" *(revisada por el desarrollador)*
 
 **Commit:**
 ```
-(pendiente de autorización)
+6798508 feat(places): agregar lugares turísticos con Geoapify y /country/[code]/places
 ```
 
 ---

@@ -50,6 +50,7 @@ Para cada paso se registran:
 | 9 | Paso 8 | `5d8b438` | `feat(weather): agregar clima, /api/weather y detalle de país con degradación elegante` | Feature `weather`, `/api/weather`, `/country/[code]` con clima en `<Suspense>` y degradación elegante |
 | 10 | Paso 9 | `6798508` | `feat(places): agregar lugares turísticos con Geoapify y /country/[code]/places` | Feature `places`, `/api/places`, página de lugares y fix de errores dentro de `'use cache'` (`CachedResult`) |
 | 11 | Paso 10 | `b9e8a6b` | `feat(favorites): agregar favoritos con localStorage y página /favorites` | `useFavorites` con `localStorage`, `FavoriteButton`, `FavoritesList` y `/favorites` |
+| 12 | Paso 11 | `c3b89ac` | `fix: corregir hallazgos de severidad alta y media de la revisión` | Validación regional de coordenadas, foco en tarjetas, contraste, `page-container` responsive y `RouteErrorView` |
 
 > Esta tabla se actualiza con cada commit nuevo. Como un commit no puede contener su propio hash, después de cada commit de funcionalidad se hace un commit `docs(vibe): ...` que registra el hash. Esos commits de registro no se listan en esta tabla.
 
@@ -966,8 +967,10 @@ b9e8a6b feat(favorites): agregar favoritos con localStorage y página /favorites
 
 **Commit:**
 ```
-(pendiente de autorización)
+c3b89ac fix: corregir hallazgos de severidad alta y media de la revisión
 ```
+
+> El mensaje propuesto originalmente superaba los 72 caracteres que permite la regla 4.3 de `AGENTS.md`, así que se acortó antes de hacer el commit.
 
 ---
 

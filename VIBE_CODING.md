@@ -666,6 +666,83 @@ c017873 feat(countries): agregar página /explore con búsqueda y filtro por pob
 
 ---
 
+### Paso 8 — Feature `weather` y detalle del país `/country/[code]`
+
+**Objetivo:** mostrar la ficha de cada país con clima en tiempo real, sin que una falla del clima rompa la página.
+
+**Prompt principal:**
+> "Siguiendo AGENTS.md, implementa el feature weather: schema zod para la respuesta de Open-Meteo, services/weather.service.ts ('server-only'): getWeather(lat, lon), revalidate 1800, utils/weatherCode.ts: mapear weather_code de WMO a descripción en español + emoji. Components: CurrentWeather, ForecastList (responsive: scroll horizontal en mobile, grid en desktop). Route Handler app/api/weather/route.ts con ?lat=&lon= validados con zod (rangos válidos). Luego crea app/country/[code]/page.tsx (Server Component, recuerda await params): datos del país (bandera, capital, moneda, idiomas, población); sección de clima envuelta en &lt;Suspense&gt; con su propio fallback; si el clima falla, la página NO debe romperse: mostrar ErrorState solo en esa sección; si el código de país no existe, llamar a notFound(); generateMetadata dinámico con el nombre del país. Agrega loading.tsx y error.tsx para ese segmento."
+
+**Archivos creados / modificados:**
+
+| Archivo | Descripción |
+|---|---|
+| `features/weather/schemas/weather.schema.ts` | Respuesta de Open-Meteo → modelo propio (los arreglos paralelos de `daily` pasan a una lista de días) y `weatherQuerySchema` con rangos de lat/lon |
+| `features/weather/services/weather.service.ts` | `getWeather(lat, lon)`: valida, redondea las coordenadas y cachea 30 min con `'use cache'` + `cacheLife({ revalidate: 1800 })` |
+| `features/weather/utils/weatherCode.ts` | Los 28 códigos WMO → descripción en español + emoji (luna de noche) |
+| `features/weather/utils/formatForecastDay.ts` | "Hoy", "Mañana", "mar 17", y fecha larga para lectores de pantalla |
+| `features/weather/components/CurrentWeather.tsx` | Temperatura, condición, sensación térmica, humedad y viento |
+| `features/weather/components/ForecastList.tsx` | 7 días: scroll horizontal con *snap* en móvil y grilla de 7 columnas desde `md` |
+| `features/weather/components/WeatherSection.tsx` | Sección asíncrona con **degradación elegante** |
+| `features/weather/components/WeatherSkeleton.tsx` | Skeleton del clima |
+| `app/api/weather/route.ts` | `GET /api/weather?lat=&lon=` |
+| `features/countries/components/CountryDetail.tsx` | Bandera (`preload`), nombre, nombre oficial y 6 datos clave |
+| `features/countries/components/CountryDetailSkeleton.tsx` | Skeleton de la ficha |
+| `features/countries/utils/getCountryLocation.ts` | Coordenadas de la capital (o del país, si no hay capital) |
+| `features/countries/services/countries.service.ts` | Nuevo `findCountryByCode` (devuelve `null`), pensado para páginas que llaman a `notFound()` |
+| `shared/components/ui/RefreshButton.tsx` | "Reintentar" con `router.refresh()` para secciones del servidor *(extra)* |
+| `app/country/[code]/page.tsx` | `generateStaticParams`, `generateMetadata`, `notFound()`, URL canónica y clima en `<Suspense>` |
+| `app/country/[code]/loading.tsx` y `error.tsx` | Skeleton completo, y error con `retry()` |
+
+**Iteraciones:**
+
+| # | Qué se hizo | Resultado | Ajuste / revisión |
+|---|---|---|---|
+| 1 | La IA consultó la respuesta real de Open-Meteo y la documentación de `cacheLife`, `generateStaticParams` y `dynamicParams` | `precipitation_probability_max` puede ser `null`; **`dynamicParams` no existe con `cacheComponents`**; `cacheLife` acepta un objeto (`{ revalidate: 1800 }`) | Schema con `.nullable()`; los códigos desconocidos se resuelven con `notFound()` al momento de la petición |
+| 2 | Primer `tsc` | Falló: `PageProps<'/country/[code]'>` no existía | Los tipos de rutas los genera Next en el build: se ejecuta `build` antes que `tsc` |
+| 3 | Build | `/country/BLZ` y `/country/CRI` **estáticas con el clima incluido** (revalidación de 30 min); el resto, con prerenderizado parcial (◐) | Es el fallback de `connection()`: si el clima falla en el build, se pospone a la petición en lugar de congelar el error |
+| 4 | Prueba en dev | `/country/SLV` mostraba solo el skeleton: *"findCountryByCode is not a function"* | El servidor de desarrollo tenía el módulo en caché, así que se reinició. El build de producción ya compilaba bien |
+| 5 | Pruebas funcionales | `/country/SLV`: ficha, clima actual y 7 días. `/country/XXX`: 404 temática con "Destino no encontrado" y `noindex`. `/api/weather`: 200 y errores 400 (lat fuera de rango, faltante o no numérica) | — |
+| 6 | **Prueba de degradación elegante:** se cambió temporalmente la URL de Open-Meteo por un dominio inválido | `/country/GTM` mostró la ficha completa y **solo** la sección del clima con "No pudimos obtener el clima" + "Reintentar". `error.tsx` no se activó | Se restauró la URL y el clima volvió a mostrarse |
+
+**Decisiones técnicas:**
+
+| Decisión | Motivo |
+|---|---|
+| `generateStaticParams` con los 7 países | Las fichas se prerenderizan en el build reutilizando la lista cacheada: **0 peticiones extra** a REST Countries |
+| `WeatherSection` hace el `catch` y no lo propaga | Degradación elegante (`AGENTS.md` 2.10): el clima es una fuente secundaria |
+| `unstable_rethrow` + `await connection()` en el `catch` | No captura señales internas de Next, y evita que un fallo durante el build deje el error fijo en la página estática |
+| `RefreshButton` con `router.refresh()` | Un Server Component no puede pasar `onRetry` (una función) a un Client Component |
+| Coordenadas redondeadas a 2 decimales antes de cachear | Coordenadas casi iguales comparten la misma entrada de caché |
+| `findCountryByCode` (`null`) y `getCountryByCode` (`AppError`) | Las páginas necesitan `notFound()`; los Route Handlers, un `AppError` con status 404 |
+| `/country/slv` → `permanentRedirect('/country/SLV')` | Una sola URL canónica por país |
+| Clima de la **capital** (o del centro del país si no hay capital) | Es la referencia más útil para un viajero |
+
+**Desafíos y soluciones:**
+
+| Desafío | Solución con apoyo de la IA |
+|---|---|
+| `notFound()` en `/country/XXX` responde HTTP 200 (con `noindex`) en lugar de 404 | Es el comportamiento documentado con `cacheComponents`: el status se envía con el shell, antes de que la página decida. Como `dynamicParams` no existe en este modo, se acepta y queda documentado. Google respeta el `noindex` |
+| Igual con la redirección de minúsculas: llega como 200 y redirige en el navegador | Mismo motivo; el usuario termina igualmente en `/country/SLV` |
+| Probar la degradación sin una API caída de verdad | Se simuló la caída cambiando la URL temporalmente y se verificó el HTML; luego se restauró el código |
+| Monedas y capitales en inglés ("United States dollar", "Guatemala City") | La v5 de REST Countries no las traduce; es una limitación conocida |
+
+**Validación:**
+- [x] `npm run build`: exitoso (fichas de países estáticas o con prerenderizado parcial; `/api/weather` dinámica)
+- [x] `npx tsc --noEmit` y `npm run lint`: sin errores
+- [x] Ficha del país, clima actual y pronóstico verificados
+- [x] `notFound()` para códigos inexistentes
+- [x] `/api/weather`: respuesta válida y errores 400
+- [x] Degradación elegante: falla del clima → error solo en su sección
+- [ ] Revisión visual en móvil (scroll horizontal del pronóstico) *(la realiza el desarrollador)*
+
+**Commit:**
+```
+(pendiente de autorización)
+```
+
+---
+
 <!--
 PLANTILLA PARA LOS SIGUIENTES PASOS (copiar y completar)
 

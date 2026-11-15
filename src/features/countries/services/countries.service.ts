@@ -88,20 +88,27 @@ export async function searchCountries(query?: string): Promise<Country[]> {
 }
 
 /**
- * Devuelve un país por su código alpha-3 (por ejemplo, `SLV`).
- * Lanza `AppError NOT_FOUND` si el código no es válido o no es un país de Centroamérica.
+ * Busca un país por su código alpha-3 (sin importar mayúsculas).
+ * Devuelve `null` si el código no es válido o no es un país de Centroamérica.
+ * Pensado para las páginas, que deciden llamar a `notFound()`.
  */
-export async function getCountryByCode(code: string): Promise<Country> {
+export async function findCountryByCode(code: string): Promise<Country | null> {
   const parsedCode = countryCodeSchema.safeParse(code);
-  if (!parsedCode.success) {
-    throw new AppError('No encontramos ese destino.', 'NOT_FOUND', 404, { code });
-  }
+  if (!parsedCode.success) return null;
 
   const countries = await getCentralAmericaCountries();
-  const country = countries.find((item) => item.code === parsedCode.data);
+  return countries.find((item) => item.code === parsedCode.data) ?? null;
+}
+
+/**
+ * Devuelve un país por su código alpha-3 (por ejemplo, `SLV`).
+ * Lanza `AppError NOT_FOUND` si no existe (pensado para Route Handlers).
+ */
+export async function getCountryByCode(code: string): Promise<Country> {
+  const country = await findCountryByCode(code);
 
   if (!country) {
-    throw new AppError('No encontramos ese destino.', 'NOT_FOUND', 404, { code: parsedCode.data });
+    throw new AppError('No encontramos ese destino.', 'NOT_FOUND', 404, { code });
   }
 
   return country;

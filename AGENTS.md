@@ -450,6 +450,10 @@ La información del país (REST Countries) es la **fuente principal**. Clima (Op
 - Cada sección secundaria se envuelve en su propio `<Suspense>` con su propio fallback de carga.
 - El componente de la sección captura el error y muestra `ErrorState` en lugar de propagarlo a `error.tsx`.
 - Solo un fallo de la fuente principal (o un país inexistente) puede llevar a `error.tsx` o a `notFound()`.
+- Patrón obligatorio en el `catch` de una sección (ver `features/weather/components/WeatherSection.tsx`):
+  1. `unstable_rethrow(error)`: devuelve a Next.js sus señales internas.
+  2. `await connection()`: si la falla ocurre durante el build, pospone la sección a la petición real en lugar de **congelar el error** en la página estática.
+  3. `logger.warn(...)` y `ErrorState variant="section"` con `<RefreshButton />` (`shared/components/ui/RefreshButton.tsx`), porque un Server Component no puede pasar `onRetry`.
 
 ```
 ┌─────────────── /country/SLV ───────────────┐

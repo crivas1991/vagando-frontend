@@ -3,6 +3,8 @@
 
 export { CountriesHero } from './components/CountriesHero';
 export { CountryCard } from './components/CountryCard';
+export { CountryDetail } from './components/CountryDetail';
+export { CountryDetailSkeleton } from './components/CountryDetailSkeleton';
 export { CountryGrid } from './components/CountryGrid';
 export { CountryGridSkeleton } from './components/CountryGridSkeleton';
 export { CountrySearch } from './components/CountrySearch';
@@ -12,4 +14,5 @@ export type { CountriesQuery, CountriesResponse, Country } from './types/country
 export { CENTRAL_AMERICA_CODES, COUNTRY_SEARCH_MAX_LENGTH } from './utils/constants';
 export { filterCountries } from './utils/filterCountries';
 export { formatPopulation, formatPopulationCompact } from './utils/formatPopulation';
+export { getCountryLocation, type CountryLocation } from './utils/getCountryLocation';
 export { POPULATION_FILTERS, matchesPopulation, type PopulationFilter } from './utils/populationFilters';

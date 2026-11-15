@@ -45,6 +45,7 @@ Para cada paso se registran:
 | 4 | Paso 3 | `f37ccc6` | `feat(shared): agregar manejo de errores, cliente HTTP y validación de entorno` | `AppError`, `fetchJson`, `getServerEnv`, logger, `handleRouteError`, `.env.example` y migración documentada a REST Countries v5 |
 | 5 | Paso 4 | `9baea80` | `feat(ui): agregar componentes compartidos, layout y paleta de viajes` | Navbar, Footer, Card, Skeleton, Spinner, ErrorState, EmptyState, paleta, fuentes y layout |
 | 6 | Paso 5 | `24a1e9f` | `feat(errors): agregar páginas de error, 404 y loading globales` | `error.tsx` con `retry()`, `global-error.tsx`, `not-found.tsx`, `loading.tsx` y `reportClientError` |
+| 7 | Paso 6 | `eae45a7` | `feat(countries): agregar feature de países, /api/countries y página de inicio` | Feature `countries` con REST Countries v5 cacheada, `/api/countries`, inicio real, `unstable_rethrow`, contenedor al 80% y hover verde oscuro |
 
 > Esta tabla se actualiza con cada commit nuevo. Como un commit no puede contener su propio hash, después de cada commit de funcionalidad se hace un commit `docs(vibe): ...` que registra el hash. Esos commits de registro no se listan en esta tabla.
 
@@ -590,10 +591,11 @@ f37ccc6 feat(shared): agregar manejo de errores, cliente HTTP y validación de e
 - [x] `/api/countries`: búsqueda, vacío y error 400 probados
 - [x] La key no se expone en HTML ni en las respuestas
 - [x] Build con key inválida → falla de forma controlada
+- [x] Revisión visual del desarrollador (ajustes de ancho y hover aplicados)
 
 **Commit:**
 ```
-(pendiente de autorización)
+eae45a7 feat(countries): agregar feature de países, /api/countries y página de inicio
 ```
 
 ---

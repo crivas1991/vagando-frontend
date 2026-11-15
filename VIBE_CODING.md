@@ -44,8 +44,9 @@ Para cada paso se registran:
 | 3 | Pasos 0–2 | `ba71e58` | `docs: agregar VIBE_CODING.md con registro del proceso` | Este documento con el registro de los pasos 0, 1 y 2 |
 | 4 | Paso 3 | `f37ccc6` | `feat(shared): agregar manejo de errores, cliente HTTP y validación de entorno` | `AppError`, `fetchJson`, `getServerEnv`, logger, `handleRouteError`, `.env.example` y migración documentada a REST Countries v5 |
 | 5 | Paso 4 | `9baea80` | `feat(ui): agregar componentes compartidos, layout y paleta de viajes` | Navbar, Footer, Card, Skeleton, Spinner, ErrorState, EmptyState, paleta, fuentes y layout |
+| 6 | Paso 5 | `24a1e9f` | `feat(errors): agregar páginas de error, 404 y loading globales` | `error.tsx` con `retry()`, `global-error.tsx`, `not-found.tsx`, `loading.tsx` y `reportClientError` |
 
-> Esta tabla se actualiza con cada commit nuevo. El hash de un commit que modifica este archivo se completa en el commit siguiente, porque un commit no puede contener su propio hash.
+> Esta tabla se actualiza con cada commit nuevo. Como un commit no puede contener su propio hash, después de cada commit de funcionalidad se hace un commit `docs(vibe): ...` que registra el hash. Esos commits de registro no se listan en esta tabla.
 
 ---
 
@@ -502,10 +503,11 @@ f37ccc6 feat(shared): agregar manejo de errores, cliente HTTP y validación de e
 - [x] Error del servidor: el secreto no llega al navegador, solo el `digest`
 - [x] 404: HTTP 404, página temática y `noindex`
 - [x] Ruta temporal `/dev-error` eliminada antes del commit
+- [x] Capturas de pantalla tomadas por el desarrollador (error, 404 y loading)
 
 **Commit:**
 ```
-(pendiente de autorización)
+24a1e9f feat(errors): agregar páginas de error, 404 y loading globales
 ```
 
 ---

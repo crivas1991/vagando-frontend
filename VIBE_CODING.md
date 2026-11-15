@@ -47,6 +47,7 @@ Para cada paso se registran:
 | 6 | Paso 5 | `24a1e9f` | `feat(errors): agregar páginas de error, 404 y loading globales` | `error.tsx` con `retry()`, `global-error.tsx`, `not-found.tsx`, `loading.tsx` y `reportClientError` |
 | 7 | Paso 6 | `eae45a7` | `feat(countries): agregar feature de países, /api/countries y página de inicio` | Feature `countries` con REST Countries v5 cacheada, `/api/countries`, inicio real, `unstable_rethrow`, contenedor al 80% y hover verde oscuro |
 | 8 | Paso 7 | `c017873` | `feat(countries): agregar página /explore con búsqueda y filtro por población` | `useCountrySearch` (debounce, AbortController, `isLoading` derivado), `CountrySearch`, `/explore`, `fetchApi` |
+| 9 | Paso 8 | `5d8b438` | `feat(weather): agregar clima, /api/weather y detalle de país con degradación elegante` | Feature `weather`, `/api/weather`, `/country/[code]` con clima en `<Suspense>` y degradación elegante |
 
 > Esta tabla se actualiza con cada commit nuevo. Como un commit no puede contener su propio hash, después de cada commit de funcionalidad se hace un commit `docs(vibe): ...` que registra el hash. Esos commits de registro no se listan en esta tabla.
 
@@ -734,11 +735,11 @@ c017873 feat(countries): agregar página /explore con búsqueda y filtro por pob
 - [x] `notFound()` para códigos inexistentes
 - [x] `/api/weather`: respuesta válida y errores 400
 - [x] Degradación elegante: falla del clima → error solo en su sección
-- [ ] Revisión visual en móvil (scroll horizontal del pronóstico) *(la realiza el desarrollador)*
+- [x] Revisión visual en móvil (scroll horizontal del pronóstico) *(revisada por el desarrollador)*
 
 **Commit:**
 ```
-(pendiente de autorización)
+5d8b438 feat(weather): agregar clima, /api/weather y detalle de país con degradación elegante
 ```
 
 ---

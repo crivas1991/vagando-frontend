@@ -4,8 +4,12 @@
 export { CountriesHero } from './components/CountriesHero';
 export { CountryCard } from './components/CountryCard';
 export { CountryGrid } from './components/CountryGrid';
+export { CountryGridSkeleton } from './components/CountryGridSkeleton';
+export { CountrySearch } from './components/CountrySearch';
+export { useCountrySearch, SEARCH_DEBOUNCE_MS, type UseCountrySearchResult } from './hooks/useCountrySearch';
 export { countriesQuerySchema, countryCodeSchema } from './schemas/country.schema';
 export type { CountriesQuery, CountriesResponse, Country } from './types/country.types';
 export { CENTRAL_AMERICA_CODES, COUNTRY_SEARCH_MAX_LENGTH } from './utils/constants';
 export { filterCountries } from './utils/filterCountries';
 export { formatPopulation, formatPopulationCompact } from './utils/formatPopulation';
+export { POPULATION_FILTERS, matchesPopulation, type PopulationFilter } from './utils/populationFilters';

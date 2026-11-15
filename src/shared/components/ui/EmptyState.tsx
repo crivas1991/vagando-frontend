@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 
 import { cn } from '@/shared/lib/cn';
 
@@ -12,10 +13,12 @@ type EmptyStateProps = {
     label: string;
     href: string;
   };
+  /** Acción personalizada, por ejemplo un botón "Limpiar filtros" desde un Client Component. */
+  children?: ReactNode;
   className?: string;
 };
 
-export function EmptyState({ title, message, action, className }: EmptyStateProps) {
+export function EmptyState({ title, message, action, children, className }: EmptyStateProps) {
   return (
     <div
       className={cn(
@@ -39,6 +42,7 @@ export function EmptyState({ title, message, action, className }: EmptyStateProp
           {action.label}
         </Link>
       )}
+      {children}
     </div>
   );
 }

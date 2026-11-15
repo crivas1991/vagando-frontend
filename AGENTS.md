@@ -201,6 +201,9 @@ Toda falla debe ser **tipada, controlada y segura**: el usuario ve un mensaje cl
 | `shared/lib/env.ts` | Validación de variables de entorno con zod (solo servidor) |
 | `shared/lib/logger.ts` | Logger de servidor (`error`, `warn`, `info`) |
 | `shared/lib/api-response.ts` | Helper `handleRouteError(error)` para Route Handlers |
+| `shared/lib/fetch-api.ts` | `fetchApi` y `ApiRequestError` para los hooks de cliente que consultan `/api/*` |
+| `shared/lib/read-api-error.ts` | Lee el mensaje del formato `{ error: { code, message } }` |
+| `shared/lib/report-client-error.ts` | Registro de errores en el navegador (`error.tsx`, `global-error.tsx`) |
 
 ### 2.2 Clase `AppError` tipada
 
@@ -385,34 +388,42 @@ export default function CountryError({ error, retry }: { error: unknown; retry: 
 ### 2.8 Hooks de cliente
 
 Todo hook que consulta datos:
-- expone **siempre** `{ data, error, isLoading }`,
-- cancela la petición con `AbortController` en el cleanup de `useEffect`,
-- ignora el error `AbortError` (es una cancelación, no una falla),
-- lee el formato `{ error: { code, message } }` cuando la respuesta no es `ok`.
+- expone **siempre** `{ data, error, isLoading }` (y opcionalmente `retry`),
+- empieza con **`'use client'`**: los hooks se reexportan en el `index.ts` del feature, que también importan Server Components. Sin la directiva, el build falla con *"You're importing a module that depends on `useState` into a React Server Component"*,
+- consulta `/api/*` con **`fetchApi`** (`shared/lib/fetch-api.ts`), que convierte cualquier falla (sin conexión, respuesta no JSON o formato `{ error: { code, message } }`) en un `ApiRequestError` con mensaje en español,
+- cancela la petición con `AbortController` en el cleanup de `useEffect` e ignora la cancelación (no es una falla),
+- **no llama a `setState` de forma síncrona dentro del efecto**: la regla `react-hooks/set-state-in-effect` está activa como error. `isLoading` se **deriva** comparando el último resultado con la consulta actual, y `setState` solo se llama dentro de callbacks asíncronos.
 
 ```ts
-useEffect(() => {
-  const controller = new AbortController();
-  setIsLoading(true);
-  setError(null);
+'use client';
 
-  fetch(`/api/countries?q=${encodeURIComponent(query)}`, { signal: controller.signal })
-    .then(async (res) => {
-      const body = await res.json();
-      if (!res.ok) throw new Error(body?.error?.message ?? 'Ocurrió un error inesperado.');
-      setData(body);
-    })
-    .catch((err: unknown) => {
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      setError(err instanceof Error ? err.message : 'Ocurrió un error inesperado.');
-    })
-    .finally(() => {
-      if (!controller.signal.aborted) setIsLoading(false);
-    });
+export function useCountrySearch(query: string) {
+  const [result, setResult] = useState<{ query: string; data: Country[] | null; error: string | null } | null>(null);
 
-  return () => controller.abort();
-}, [query]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const body = await fetchApi(`/api/countries?q=${encodeURIComponent(query)}`, controller.signal);
+        setResult({ query, data: (body as CountriesResponse).countries, error: null });
+      } catch (error) {
+        if (controller.signal.aborted) return; // cancelación: se ignora
+        setResult({ query, data: null, error: error instanceof ApiRequestError ? error.message : DEFAULT_ERROR_MESSAGE });
+      }
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
+
+  const isLoading = result?.query !== query; // derivado: sin setState síncrono en el efecto
+  return { data: result?.data ?? null, error: isLoading ? null : (result?.error ?? null), isLoading };
+}
 ```
+
+> Implementación completa de referencia: `src/features/countries/hooks/useCountrySearch.ts`.
 
 ### 2.9 Prohibido el `catch` vacío
 

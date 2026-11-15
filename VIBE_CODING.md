@@ -600,6 +600,71 @@ eae45a7 feat(countries): agregar feature de países, /api/countries y página de
 
 ---
 
+### Paso 7 — Página `/explore` con buscador (Client Component)
+
+**Objetivo:** crear la página de exploración con búsqueda en tiempo real, usando `useState` y `useEffect` en un hook propio.
+
+**Prompt principal:**
+> "Siguiendo AGENTS.md, crea en el feature countries: hooks/useCountrySearch.ts (hook con useState y useEffect que consulte /api/countries?q=, con debounce de 400 ms, AbortController en el cleanup y retorno { data, error, isLoading }); components/CountrySearch.tsx ('use client'): input de búsqueda + filtro por población + grilla, mostrando Skeleton mientras carga, ErrorState si falla y EmptyState si no hay resultados; app/explore/page.tsx (Server Component) que renderice CountrySearch; app/explore/loading.tsx."
+
+**Archivos creados / modificados:**
+
+| Archivo | Tipo | Descripción |
+|---|---|---|
+| `features/countries/hooks/useCountrySearch.ts` | Hook (`'use client'`) | `useState` + `useEffect`, debounce de 400 ms, `AbortController`, `isLoading` derivado y `retry` |
+| `features/countries/components/CountrySearch.tsx` | Client | Formulario `role="search"`, input con `<label>`, `<select>` de población, resumen con `aria-live` y los 4 estados |
+| `features/countries/components/CountryGridSkeleton.tsx` | Server | Skeleton con la forma exacta de la grilla (reutilizado en `loading.tsx`) |
+| `features/countries/utils/populationFilters.ts` | — | Rangos de población (<5 M, 5–10 M, >10 M) y su filtro |
+| `app/explore/page.tsx` | Server | Encabezado + metadata ("Explorar destinos · Vagando") + `CountrySearch` |
+| `app/explore/loading.tsx` | Server | Skeleton del encabezado, el formulario y la grilla |
+| `shared/lib/fetch-api.ts` | — | `fetchApi` + `ApiRequestError`: errores de red o de la API → mensaje en español *(extra)* |
+| `shared/lib/read-api-error.ts` | — | Lee `{ error: { code, message } }` *(extra)* |
+| `shared/components/ui/EmptyState.tsx` | — | Ahora acepta `children` para acciones personalizadas ("Limpiar filtros") |
+
+**Iteraciones:**
+
+| # | Qué se hizo | Resultado | Ajuste / revisión |
+|---|---|---|---|
+| 0 | Se envió primero este prompt, antes del Paso 6 | La IA detectó que `/api/countries` no existía todavía | Se hizo primero el Paso 6 y luego se retomó este |
+| 1 | Antes de programar, la IA revisó las reglas de lint activas | **`react-hooks/set-state-in-effect` está activa como error**, y el ejemplo de `AGENTS.md` 2.8 (`setIsLoading(true)` dentro del efecto) **la violaba** | El hook se diseñó con `isLoading` **derivado**, y se corrigió el ejemplo en `AGENTS.md` |
+| 2 | Primer build | **Falló:** *"You're importing a module that depends on `useState` into a React Server Component"*. El barrel `index.ts` reexporta el hook, y `page.tsx` y `route.ts` importan de ese mismo barrel | Se agregó `'use client'` al archivo del hook y se documentó como regla en `AGENTS.md` 2.8 |
+| 3 | Revisión del manejo de errores del hook | Sin conexión, el navegador lanza `"Failed to fetch"` (en inglés) y el usuario lo habría visto | Se creó `fetchApi` + `ApiRequestError`: el usuario solo ve mensajes preparados en español |
+| 4 | Build final y revisión del HTML de `/explore` | `/explore` es **estática** (○); el HTML trae título, formulario, labels, skeleton inicial y el link activo en el Navbar | — |
+
+**Decisiones técnicas:**
+
+| Decisión | Motivo |
+|---|---|
+| **`isLoading` derivado** (`resultado.query !== query`) en lugar de `useState` | Cumple `react-hooks/set-state-in-effect` y evita estados inconsistentes: es imposible que `isLoading` quede "pegado" en `true` |
+| La primera carga sin debounce (0 ms), las búsquedas con 400 ms | Al entrar, el usuario ve resultados de inmediato; mientras escribe, no se dispara una petición por tecla |
+| Skeleton solo en la **primera** carga; en búsquedas siguientes, spinner + grilla semitransparente | Mostrar el skeleton en cada tecla haría parpadear la página |
+| Búsqueda de texto en el servidor (`/api/countries?q=`) y filtro de población en el cliente | Cumple el requisito de consumir el Route Handler, y filtrar 7 países en el cliente es instantáneo |
+| `retry` en el hook, conectado a "Reintentar" de `ErrorState` | Un error temporal se recupera sin recargar la página |
+| `'use client'` en el archivo del hook | Permite reexportarlo en el barrel sin romper a los Server Components que importan del mismo `index.ts` |
+| Accesibilidad: `role="search"`, `<label>` en cada campo, `aria-live` con el conteo de resultados, `maxLength` igual al límite del servidor | Reglas 3.6 y 4.6 de `AGENTS.md` |
+
+**Desafíos y soluciones:**
+
+| Desafío | Solución con apoyo de la IA |
+|---|---|
+| El ejemplo de hook en nuestras propias reglas no pasaba el lint de React 19 | Se rediseñó el patrón (estado derivado) y se corrigió la regla en `AGENTS.md` |
+| Barrel `index.ts` compartido entre Server y Client Components | `'use client'` en los archivos de hooks, documentado para los próximos features |
+| Mensajes técnicos del navegador ("Failed to fetch") | `fetchApi` en `shared/lib`, reutilizable por el hook de `places` del Paso 9 |
+
+**Validación:**
+- [x] `npx tsc --noEmit`: sin errores
+- [x] `npm run lint`: sin errores (incluida `react-hooks/set-state-in-effect`)
+- [x] `npm run build`: exitoso, `/explore` estática
+- [x] HTML del servidor de `/explore` revisado (título, formulario, labels, skeleton)
+- [ ] Prueba en el navegador: debounce (una sola petición en Network), Offline → error con "Reintentar", `zzzz` → vacío con "Limpiar filtros", Slow 4G → skeleton *(la realiza el desarrollador)*
+
+**Commit:**
+```
+(pendiente de autorización)
+```
+
+---
+
 <!--
 PLANTILLA PARA LOS SIGUIENTES PASOS (copiar y completar)
 

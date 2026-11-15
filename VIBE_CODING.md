@@ -46,6 +46,7 @@ Para cada paso se registran:
 | 5 | Paso 4 | `9baea80` | `feat(ui): agregar componentes compartidos, layout y paleta de viajes` | Navbar, Footer, Card, Skeleton, Spinner, ErrorState, EmptyState, paleta, fuentes y layout |
 | 6 | Paso 5 | `24a1e9f` | `feat(errors): agregar páginas de error, 404 y loading globales` | `error.tsx` con `retry()`, `global-error.tsx`, `not-found.tsx`, `loading.tsx` y `reportClientError` |
 | 7 | Paso 6 | `eae45a7` | `feat(countries): agregar feature de países, /api/countries y página de inicio` | Feature `countries` con REST Countries v5 cacheada, `/api/countries`, inicio real, `unstable_rethrow`, contenedor al 80% y hover verde oscuro |
+| 8 | Paso 7 | `c017873` | `feat(countries): agregar página /explore con búsqueda y filtro por población` | `useCountrySearch` (debounce, AbortController, `isLoading` derivado), `CountrySearch`, `/explore`, `fetchApi` |
 
 > Esta tabla se actualiza con cada commit nuevo. Como un commit no puede contener su propio hash, después de cada commit de funcionalidad se hace un commit `docs(vibe): ...` que registra el hash. Esos commits de registro no se listan en esta tabla.
 
@@ -656,11 +657,11 @@ eae45a7 feat(countries): agregar feature de países, /api/countries y página de
 - [x] `npm run lint`: sin errores (incluida `react-hooks/set-state-in-effect`)
 - [x] `npm run build`: exitoso, `/explore` estática
 - [x] HTML del servidor de `/explore` revisado (título, formulario, labels, skeleton)
-- [ ] Prueba en el navegador: debounce (una sola petición en Network), Offline → error con "Reintentar", `zzzz` → vacío con "Limpiar filtros", Slow 4G → skeleton *(la realiza el desarrollador)*
+- [x] Prueba en el navegador: debounce (una sola petición en Network), Offline → error con "Reintentar", `zzzz` → vacío con "Limpiar filtros", Slow 4G → skeleton *(revisada por el desarrollador antes de aprobar el commit)*
 
 **Commit:**
 ```
-(pendiente de autorización)
+c017873 feat(countries): agregar página /explore con búsqueda y filtro por población
 ```
 
 ---

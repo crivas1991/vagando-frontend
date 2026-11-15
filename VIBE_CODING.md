@@ -201,6 +201,7 @@ Fue el desafío más frecuente del proyecto: **lo que dicen los tutoriales y la 
 | 12 | Paso 11 | `c3b89ac` | `fix: corregir hallazgos de severidad alta y media de la revisión` | Validación regional de coordenadas, foco en tarjetas, contraste, `page-container` responsive y `RouteErrorView` |
 | 13 | Paso 12 | `51a9cd7` | `docs(vibe): reorganizar VIBE_CODING.md y documentar APIs deprecadas` | Este documento en 6 secciones, con los desafíos de APIs dadas de baja o con error 500 y el registro por paso en el Anexo A |
 | 14 | Paso 13 | `d1ed41a` | `docs: agregar README con instalación, uso y enlace a producción` | `README.md` completo con el link a producción, y el registro del deploy y del checklist de entregables |
+| 15 | Paso 14 | `c4318c6` | `perf: aplicar caché remota, datos iniciales en /explore, zod/mini y SEO` | `'use cache: remote'`, `/explore` prerenderizado con datos, `zod/mini` (−47% de JS de zod), caché de imágenes de 30 días y SEO completo |
 
 > Esta tabla se actualiza con cada commit nuevo. Como un commit no puede contener su propio hash, después de cada commit de funcionalidad se hace un commit `docs(vibe): ...` que registra el hash. Esos commits de registro no se listan en esta tabla.
 
@@ -1294,7 +1295,7 @@ d1ed41a docs: agregar README con instalación, uso y enlace a producción
 
 **Commit:**
 ```
-(pendiente de autorización)
+c4318c6 perf: aplicar caché remota, datos iniciales en /explore, zod/mini y SEO
 ```
 
 ---

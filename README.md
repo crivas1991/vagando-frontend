@@ -198,7 +198,8 @@ src/
 - `app/` solo **compone** componentes y services; no hace `fetch` directo.
 - Un feature se usa solo a través de su `index.ts` (cliente) o `server.ts` (servidor).
 - Los Client Components consultan únicamente `/api/*`; los Server Components usan los services directamente.
-- Caché con `'use cache'` + `cacheLife()`: países 1 día, clima 30 minutos, lugares 1 día.
+- Caché con `cacheLife()`: países 1 día y lugares 1 día (`'use cache: remote'`, compartida entre instancias), y clima 30 minutos (`'use cache'`).
+- SEO: canonical por página, imagen Open Graph generada, `sitemap.xml` y `robots.txt`.
 
 ---
 
@@ -230,7 +231,7 @@ src/
 - **Código de país inexistente** (`/country/XXX`): muestra la página 404 con `noindex`, pero con HTTP 200. Es un comportamiento documentado de Next.js 16 con `cacheComponents`.
 - **Lugares sin foto:** Geoapify casi nunca trae imágenes; se muestra una ilustración por categoría.
 - **Favoritos por navegador:** se guardan en `localStorage`, así que no se comparten entre dispositivos.
-- **Caché en serverless:** en Vercel la caché en memoria no se comparte entre instancias. Hay una optimización propuesta (`'use cache: remote'`) registrada en `VIBE_CODING.md` (Paso 11.3).
+- **Caché en serverless:** REST Countries y Geoapify usan `'use cache: remote'` para compartir la caché entre las instancias de Vercel y proteger la cuota de las keys. Si la plataforma no ofrece una caché remota, Next.js usa la caché en memoria.
 
 ---
 

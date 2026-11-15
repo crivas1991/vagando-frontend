@@ -9,6 +9,7 @@ import { Spinner } from '@/shared/components/ui/Spinner';
 import { cn } from '@/shared/lib/cn';
 
 import { useCountrySearch } from '@/features/countries/hooks/useCountrySearch';
+import type { Country } from '@/features/countries/types/country.types';
 import { COUNTRY_SEARCH_MAX_LENGTH } from '@/features/countries/utils/constants';
 import {
   POPULATION_FILTERS,
@@ -25,11 +26,12 @@ import { CountryGridSkeleton } from './CountryGridSkeleton';
  * - El texto se busca en el servidor (`/api/countries?q=`) con debounce.
  * - El filtro de población se aplica en el cliente sobre los resultados.
  * - Estados: skeleton en la primera carga, spinner en búsquedas siguientes, error con reintento y vacío.
+ * - `initialCountries`: países que ya trae el servidor; con ellos no hay skeleton ni petición al abrir la página.
  */
-export function CountrySearch() {
+export function CountrySearch({ initialCountries }: { initialCountries?: Country[] }) {
   const [query, setQuery] = useState('');
   const [population, setPopulation] = useState<PopulationFilter>('all');
-  const { data, error, isLoading, retry } = useCountrySearch(query);
+  const { data, error, isLoading, retry } = useCountrySearch(query, initialCountries);
 
   const searchId = useId();
   const populationId = useId();

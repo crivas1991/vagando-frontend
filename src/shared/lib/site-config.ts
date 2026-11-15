@@ -16,6 +16,9 @@ export type Attribution = {
 
 export const siteConfig = {
   name: 'Vagando',
+  /** URL pública de producción: base para metadataBase, canonical, sitemap y robots. No es un secreto. */
+  url: 'https://vagando-frontend.vercel.app',
+  locale: 'es_419',
   tagline: 'Turismo en Centroamérica',
   description:
     'Descubre los destinos de Centroamérica: información de cada país, clima en tiempo real y lugares turísticos para planear tu próximo viaje.',

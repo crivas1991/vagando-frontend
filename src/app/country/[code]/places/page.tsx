@@ -18,9 +18,21 @@ export async function generateMetadata({ params }: PageProps<'/country/[code]/pl
 
   if (!country) return { title: 'Destino no encontrado' };
 
+  const url = `/country/${country.code}/places`;
+  const title = `Lugares turísticos de ${country.name}`;
+  const description = `Atractivos, museos, naturaleza, playas y gastronomía cerca de ${country.capital?.name ?? country.name}.`;
+
   return {
-    title: `Lugares turísticos de ${country.name}`,
-    description: `Atractivos, museos, naturaleza, playas y gastronomía cerca de ${country.capital?.name ?? country.name}.`,
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: 'website',
+      url,
+      title: `${title} · Vagando`,
+      description,
+      images: [{ url: country.flag.png, alt: country.flag.alt }],
+    },
   };
 }
 

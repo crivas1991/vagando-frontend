@@ -33,8 +33,8 @@ export function readFavorites(): string[] {
   try {
     const parsed = storedFavoritesSchema.safeParse(JSON.parse(raw));
     if (parsed.success) {
-      memoryFavorites = parsed.data;
-      return parsed.data;
+      memoryFavorites = [...new Set(parsed.data)];
+      return memoryFavorites;
     }
     logger.warn('Favoritos guardados con formato inválido; se reinician', parsed.error.issues);
   } catch (error) {

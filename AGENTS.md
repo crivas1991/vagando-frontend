@@ -284,6 +284,8 @@ export async function fetchJson<T>(
 
 > **Caché con `cacheComponents`:** el proyecto tiene `cacheComponents: true` en `next.config.ts`. En este modo, la caché **no** se configura en `fetch` (`next: { revalidate }`), sino en las funciones de los services con la directiva `'use cache'` y `cacheLife()`. Por eso `fetchJson` no recibe opciones de caché. Ver `node_modules/next/dist/docs/01-app/03-api-reference/01-directives/use-cache.md`.
 
+> **`'use cache: remote'` para APIs con cuota.** En serverless (Vercel), la caché en memoria de `'use cache'` **no se comparte entre instancias**, así que muchas visitas pueden terminar en peticiones a la API externa. Las funciones que consultan APIs con key y cuota (REST Countries: 1000/mes; Geoapify: 3000/día) usan **`'use cache: remote'`**, que usa la caché compartida de la plataforma. Si la plataforma no ofrece una (por ejemplo, en local), Next.js usa la caché en memoria normal (verificado en `next/dist/server/use-cache/handlers.js`). APIs sin key ni cuota estricta (Open-Meteo) usan `'use cache'`.
+>
 > **Errores dentro de `'use cache'`: nunca se lanzan, se devuelven.** Un `AppError` lanzado dentro de una función con `'use cache'` cruza una frontera de serialización. En producción sale como un `Error` genérico ("An error occurred in the Server Components render...") y **se pierden la clase, el código y el status**. Se detectó en el Paso 9: una key inválida respondía 500 en lugar de 502. Patrón obligatorio (`shared/lib/cached-result.ts`):
 >
 > ```ts
@@ -592,7 +594,8 @@ export default function ExplorePage() {
 - La navegación tiene menú hamburguesa en móvil y barra horizontal en escritorio.
 - No debe existir scroll horizontal en ningún ancho de pantalla (mínimo 320px).
 - Los elementos táctiles miden al menos 44×44px.
-- Las imágenes usan `next/image` con `sizes` definido. Los dominios externos se configuran en `images.remotePatterns` de `next.config.ts`.
+- Las imágenes usan `next/image` con `sizes` definido. Los dominios externos se configuran en `images.remotePatterns` de `next.config.ts`, y `images.minimumCacheTTL` es de 30 días (las banderas no cambian).
+- **Peso del JavaScript del cliente:** las librerías que llegan al navegador se eligen con cuidado. En el código de cliente se usa **`zod/mini`** (`import * as z from 'zod/mini'`) en lugar de `zod`; la versión completa queda solo para el servidor. Si una página ya tiene los datos en el servidor, se pasan como props iniciales al Client Component en lugar de pedirlos de nuevo desde el navegador (ver `CountrySearch` con `initialCountries`).
 - **Accesibilidad:** HTML semántico (`header`, `nav`, `main`, `section`, `footer`), `alt` descriptivo en imágenes, foco visible y contraste suficiente.
   - **Foco en tarjetas enlazadas:** `Card` usa `overflow-hidden`, que recorta el contorno de foco de un enlace interno. Por eso las tarjetas con `interactive` dibujan un anillo en la tarjeta completa (`has-[a:focus-visible]:ring-2`), y el enlace interno lleva `focus-visible:outline-none`.
   - **Contraste:** el texto, incluidos los `placeholder`, usa como mínimo `text-muted`, que cumple 4.5:1 sobre `background` y `surface`. No se usan opacidades (`text-muted/70`) en textos.
@@ -676,7 +679,15 @@ Cómo cumplirlo:
 
 Errores típicos del build si no se cumple: `blocking-prerender-dynamic` y `blocking-prerender-client-hook`.
 
-### 3.10 Checklist de cumplimiento
+### 3.10 SEO y metadata
+
+- `app/layout.tsx` define `metadataBase` (`siteConfig.url`), la plantilla de título, `openGraph` y `twitter`.
+- **Cada página define su propio canonical** (`alternates.canonical`) y su `openGraph.url`. Si se definieran en el layout, todas las páginas heredarían el canonical de la portada.
+- Imagen para redes: `app/opengraph-image.tsx` (generada en el build). Las páginas de país la reemplazan por la bandera.
+- `app/sitemap.ts` (portada, explorar y las páginas de los 7 países) y `app/robots.ts` (bloquea `/api/`).
+- Las páginas personales o sin contenido útil para buscadores (`/favorites`) llevan `robots: { index: false }`.
+
+### 3.11 Checklist de cumplimiento
 
 - [ ] `tsconfig.json` con `strict: true` y ningún `any` en el código.
 - [ ] Las 5 rutas existen y funcionan.

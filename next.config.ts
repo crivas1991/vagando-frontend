@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   images: {
+    // Las banderas y fotos no cambian: las versiones optimizadas se cachean 30 días (por defecto, 4 horas).
+    minimumCacheTTL: 60 * 60 * 24 * 30,
     // Dominios externos permitidos para next/image (AGENTS.md 4.4).
     remotePatterns: [
       new URL('https://flags.restcountries.com/v5/**'),

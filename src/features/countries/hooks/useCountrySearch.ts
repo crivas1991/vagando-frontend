@@ -42,13 +42,20 @@ function isCountriesResponse(body: unknown): body is CountriesResponse {
  * - `isLoading` es DERIVADO: está cargando mientras el último resultado no corresponde a la búsqueda
  *   actual. Así el efecto nunca llama a `setState` de forma síncrona (regla `react-hooks/set-state-in-effect`).
  * - Mientras carga, conserva los datos anteriores para que la grilla no parpadee.
+ * - `initialCountries` (Paso 14): si la página ya trae los países desde el servidor, la búsqueda vacía
+ *   los usa directamente. Así no hay skeleton ni petición al abrir `/explore`, y la API solo se
+ *   consulta cuando el usuario escribe.
  */
-export function useCountrySearch(rawQuery: string): UseCountrySearchResult {
+export function useCountrySearch(rawQuery: string, initialCountries?: Country[]): UseCountrySearchResult {
   const query = rawQuery.trim();
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<SearchResult | null>(null);
 
+  const usesInitialData = query === '' && initialCountries !== undefined;
+
   useEffect(() => {
+    if (usesInitialData) return;
+
     const controller = new AbortController();
 
     const timer = setTimeout(
@@ -81,14 +88,19 @@ export function useCountrySearch(rawQuery: string): UseCountrySearchResult {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, attempt]);
+  }, [query, attempt, usesInitialData]);
 
   const retry = useCallback(() => setAttempt((current) => current + 1), []);
+
+  if (usesInitialData) {
+    return { data: initialCountries, error: null, isLoading: false, retry };
+  }
 
   const isLoading = result === null || result.query !== query || result.attempt !== attempt;
 
   return {
-    data: result?.data ?? null,
+    // Mientras llega la primera búsqueda se siguen mostrando los países iniciales (atenuados).
+    data: result?.data ?? initialCountries ?? null,
     error: isLoading ? null : (result?.error ?? null),
     isLoading,
     retry,

@@ -56,6 +56,7 @@
 | 11.3 | *"Revisa rendimiento: caché/revalidate por API, next/image, tamaño de los Client Components y metadata para SEO"* | Informe de rendimiento (pendiente de aplicar) |
 | 12 | *"Con base en este historial, ayúdame a redactar VIBE_CODING.md con las secciones…"* | Este documento |
 | 13 | *"Dame un checklist para desplegar Vagando en Vercel…"* + *"Ayúdame con un checklist de si se cumplen estos puntos [entregables]"* + *"prepara el README y el Paso 13"* | Deploy en https://vagando-frontend.vercel.app, verificación en producción y `README.md` |
+| 14 | *"Haz la optimización entonces, por favor"* | Caché remota, `/explore` con datos del servidor, `zod/mini` en el cliente, `next/image` y SEO completo |
 
 **Prompts de control usados durante todo el proyecto:**
 - *"Aún no generes código, te daré más contexto."* Así el contexto se completaba antes de empezar.
@@ -121,7 +122,7 @@ Qué generó la IA, qué estaba mal y cómo se corrigió. Solo están las más i
 
 - Con `cacheComponents`, la caché se declara con **`'use cache'` + `cacheLife()`** en los services, no en `fetch`.
 - Las páginas de los 7 países se **prerenderizan** en el build (`generateStaticParams`).
-- **Pendiente para producción (Paso 11.3):** en Vercel, la caché en memoria no persiste entre peticiones; la propuesta es `'use cache: remote'` para los países.
+- **Producción (Paso 14):** en Vercel, la caché en memoria no persiste entre peticiones. Por eso REST Countries y Geoapify usan **`'use cache: remote'`** (caché compartida de la plataforma), y `/explore` recibe los países desde el servidor, sin pedirlos de nuevo al abrir la página.
 
 ### Otras decisiones
 - **Degradación elegante:** si falla el clima o los lugares, la ficha del país sigue funcionando; el error queda solo en esa sección.
@@ -1142,7 +1143,7 @@ c3b89ac fix: corregir hallazgos de severidad alta y media de la revisión
 | 4 | 🟡 | SEO: hay títulos, descripciones y `twitter:card` ✅. Faltan `metadataBase`, canonical, `og:url`, `og:image` por defecto, `sitemap.ts` y `robots.ts`, y `noindex` en `/favorites` | Agregarlos usando `NEXT_PUBLIC_SITE_URL` (no es secreta) |
 | 5 | 🟢 | Los Client Components ya son pequeños y están en las hojas; el único peso notable es zod | — |
 
-**Estado:** el desarrollador decidió documentar el proceso (Paso 12) antes de aplicar estas optimizaciones.
+**Estado:** el desarrollador decidió documentar el proceso (Paso 12) y desplegar (Paso 13) antes de aplicar estas optimizaciones. Se aplicaron en el **Paso 14**.
 
 ---
 
@@ -1228,11 +1229,72 @@ Durante el deploy, el desarrollador compartió capturas de las pantallas de Verc
 | Acceso de Vercel solo al repositorio del proyecto | Mínimo privilegio sobre la cuenta de GitHub |
 | El README documenta las limitaciones conocidas | Transparencia: quien revise el proyecto sabe qué es intencional y qué queda pendiente |
 
-**Pendiente:** aplicar la optimización de caché del Paso 11.3 (`'use cache: remote'`), que protege la cuota de REST Countries en producción.
+**Pendiente (resuelto en el Paso 14):** aplicar la optimización de caché del Paso 11.3 (`'use cache: remote'`), que protege la cuota de REST Countries en producción.
 
 **Commit:**
 ```
 d1ed41a docs: agregar README con instalación, uso y enlace a producción
+```
+
+---
+
+### Paso 14 — Optimización de rendimiento (aplicación del Paso 11.3)
+
+**Objetivo:** aplicar las optimizaciones de la revisión de rendimiento, con prioridad en proteger la cuota de las APIs en producción.
+
+**Prompt principal:**
+> "Haz la optimización entonces, por favor."
+
+**Investigación previa de la IA:**
+- Leyó la documentación de `'use cache: remote'` y `cacheHandlers`. Como no aclaraba qué pasa sin un handler remoto configurado, **revisó el código fuente de Next.js** (`next/dist/server/use-cache/handlers.js`): si la plataforma no provee uno, `remote` usa la misma caché en memoria que `'use cache'`. El cambio no puede romper nada en local.
+- Probó la API de `zod/mini` con un script antes de usarla (`.check(z.regex(...))`, `.check(z.maxLength(...))` y `.safeParse()`).
+
+**Cambios aplicados:**
+
+| # | Optimización | Archivos |
+|---|---|---|
+| 1 | **`'use cache: remote'`** en las APIs con cuota: REST Countries (1000/mes) y Geoapify (3000/día). Open-Meteo, sin key, sigue con `'use cache'` | `countries.service.ts`, `places.service.ts` |
+| 2 | **`/explore` con datos iniciales del servidor:** la página se prerenderiza con los 7 países. `useCountrySearch` usa `initialCountries` para la búsqueda vacía y solo consulta `/api/countries` cuando el usuario escribe | `app/explore/page.tsx`, `CountrySearch.tsx`, `useCountrySearch.ts` |
+| 3 | **`zod/mini`** en el schema de favoritos (el único schema que viaja al navegador); la eliminación de duplicados pasó a `readFavorites` | `favorites.schema.ts`, `favoritesStorage.ts` |
+| 4 | **`images.minimumCacheTTL` = 30 días** (antes, 4 horas por defecto) | `next.config.ts` |
+| 5 | **SEO:** `metadataBase`, canonical y `og:url` por página, `twitter:card`, imagen Open Graph generada, `sitemap.xml` (16 URLs), `robots.txt` (bloquea `/api/`) y `noindex` en `/favorites` | `layout.tsx`, las 5 páginas, `opengraph-image.tsx`, `sitemap.ts`, `robots.ts`, `site-config.ts` |
+
+**Resultados medidos:**
+
+| Métrica | Antes | Después |
+|---|---|---|
+| Chunk con zod en el cliente (en 5 páginas) | 105 KB (**30 KB gzip**) | 53 KB (**16 KB gzip**), **−47%** |
+| JS total del cliente | 833 KB | 781 KB |
+| `/explore` al abrir | Skeleton → petición a `/api/countries` → contenido | **7 países ya en el HTML**, 0 peticiones |
+| Peticiones a REST Countries en Vercel | Potencialmente en cada visita o regeneración (caché por instancia) | Caché compartida entre instancias |
+| Canonical / `og:url` / `og:image` | Solo en la ficha del país | En todas las páginas |
+| `sitemap.xml` / `robots.txt` | No existían | 16 URLs / bloquea `/api/` |
+
+**Verificación:** `npm run build` (28 páginas; `/explore` estática con revalidación de 1 día; `/opengraph-image`, `/robots.txt` y `/sitemap.xml` generadas), `tsc` y `lint` sin errores. En desarrollo, las 11 rutas (páginas, metadata y APIs) responden 200. La imagen Open Graph se revisó visualmente (1200×630).
+
+**Decisiones técnicas:**
+
+| Decisión | Motivo |
+|---|---|
+| `'use cache: remote'` solo en las APIs con key | Es donde una caché por instancia puede agotar la cuota; Open-Meteo no tiene ese riesgo y la caché remota tiene costo y latencia |
+| Datos iniciales por props en lugar de quitar `/api/countries` | Mejora la carga sin perder la búsqueda en el servidor ni el uso del Route Handler desde el cliente |
+| `zod/mini` solo en favoritos | Es el único schema que llega al navegador; los del servidor siguen con zod completo |
+| Canonical por página y no en el layout | Si estuviera en el layout, todas las páginas heredarían el canonical de la portada |
+| URL de producción en `site-config.ts` y no en una variable de entorno | No es un secreto, y los previews de Vercel deben apuntar su canonical a producción |
+| Imagen Open Graph sin emojis | `ImageResponse` tendría que descargar los emojis durante el build |
+| `/favorites` con `noindex` pero sin bloquearlo en `robots.txt` | Si se bloqueara, el buscador no podría leer el `noindex` |
+
+**Desafíos y soluciones:**
+
+| Desafío | Solución con apoyo de la IA |
+|---|---|
+| La documentación no aclaraba qué hace `'use cache: remote'` sin un handler remoto | La IA leyó el código fuente de Next.js para confirmar que vuelve a la caché en memoria |
+| No se puede confirmar desde el código si el plan de Vercel ofrece caché remota | Se recomienda revisar el consumo en el panel de REST Countries durante los días siguientes al deploy |
+| `zod/mini` cambia la API (`.check()` en lugar de métodos encadenados) | Se probó con un script antes de usarla en el proyecto |
+
+**Commit:**
+```
+(pendiente de autorización)
 ```
 
 ---

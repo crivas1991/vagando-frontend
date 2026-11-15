@@ -73,9 +73,11 @@ async function requestPlaces(lat: number, lon: number, kind: PlaceKind): Promise
 /**
  * Versión cacheada con resultado serializable (ver `shared/lib/cached-result.ts`).
  * Éxito → 1 día (los lugares casi no cambian y el plan permite 3000 peticiones/día); falla → unos segundos.
+ * `'use cache: remote'`: caché compartida entre instancias serverless para proteger la cuota de la key
+ * (ver `countries.service.ts`). Open-Meteo, que no usa key, se queda con `'use cache'` en memoria.
  */
 async function loadPlaces(lat: number, lon: number, kind: PlaceKind): Promise<CachedResult<Place[]>> {
-  'use cache';
+  'use cache: remote';
 
   try {
     const places = await requestPlaces(lat, lon, kind);

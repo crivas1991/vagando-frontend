@@ -1,5 +1,12 @@
+import type { Metadata } from 'next';
+
 import { CountriesHero, CountryGrid } from '@/features/countries';
 import { getCentralAmericaCountries } from '@/features/countries/server';
+
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+  openGraph: { url: '/' },
+};
 
 /**
  * Inicio (Server Component). Los países vienen de un service cacheado (`'use cache'`),

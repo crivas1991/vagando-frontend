@@ -76,9 +76,14 @@ async function requestCentralAmericaCountries(): Promise<Country[]> {
  * (un `AppError` lanzado dentro de `'use cache'` pierde su tipo, ver `shared/lib/cached-result.ts`):
  * - éxito → se cachea 1 día (`cacheLife('days')`, equivalente a `revalidate: 86400`),
  * - falla → se cachea solo unos segundos, para reintentar pronto.
+ *
+ * `'use cache: remote'` (Paso 14): en serverless (Vercel) la caché en memoria no se comparte entre
+ * instancias, y cada visita podría gastar la cuota de 1000 peticiones/mes. La caché remota la provee
+ * la plataforma y es compartida. Si la plataforma no ofrece una (por ejemplo, en local),
+ * Next.js usa la caché en memoria normal (`next/dist/server/use-cache/handlers.js`).
  */
 async function loadCentralAmericaCountries(): Promise<CachedResult<Country[]>> {
-  'use cache';
+  'use cache: remote';
 
   try {
     const countries = await requestCentralAmericaCountries();

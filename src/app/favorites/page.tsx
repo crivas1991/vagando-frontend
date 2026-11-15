@@ -6,6 +6,9 @@ import { FavoritesList } from '@/features/favorites';
 export const metadata: Metadata = {
   title: 'Mis favoritos',
   description: 'Los destinos de Centroamérica que guardaste para tu próximo viaje.',
+  alternates: { canonical: '/favorites' },
+  // Página personal (localStorage): para un buscador siempre está vacía, así que no se indexa.
+  robots: { index: false, follow: true },
 };
 
 /**

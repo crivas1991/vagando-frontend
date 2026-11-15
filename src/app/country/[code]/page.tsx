@@ -27,10 +27,15 @@ export async function generateMetadata({ params }: PageProps<'/country/[code]'>)
 
   const description = `Información de ${country.name}: capital, población, moneda, idiomas y el clima de hoy en ${country.capital?.name ?? country.name}.`;
 
+  const url = `/country/${country.code}`;
+
   return {
     title: country.name,
     description,
+    alternates: { canonical: url },
     openGraph: {
+      type: 'website',
+      url,
       title: `${country.name} · Vagando`,
       description,
       images: [{ url: country.flag.png, alt: country.flag.alt }],

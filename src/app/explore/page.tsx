@@ -1,17 +1,23 @@
 import type { Metadata } from 'next';
 
 import { CountrySearch } from '@/features/countries';
+import { getCentralAmericaCountries } from '@/features/countries/server';
 
 export const metadata: Metadata = {
   title: 'Explorar destinos',
   description: 'Busca países de Centroamérica por nombre, capital o código y fíltralos por población.',
+  alternates: { canonical: '/explore' },
+  openGraph: { url: '/explore' },
 };
 
 /**
- * Explorar (Server Component). El encabezado se prerenderiza en el servidor
- * y solo el buscador (`CountrySearch`) es interactivo en el cliente (AGENTS.md 3.4).
+ * Explorar (Server Component). Los países llegan ya renderizados desde el servidor (lista cacheada),
+ * así que la página se prerenderiza con contenido: sin skeleton, sin petición inicial y visible para SEO.
+ * `CountrySearch` (cliente) consulta `/api/countries` solo cuando el usuario escribe (AGENTS.md 3.4).
  */
-export default function ExplorePage() {
+export default async function ExplorePage() {
+  const countries = await getCentralAmericaCountries();
+
   return (
     <div className="space-y-8">
       <header className="space-y-2">
@@ -22,7 +28,7 @@ export default function ExplorePage() {
         </p>
       </header>
 
-      <CountrySearch />
+      <CountrySearch initialCountries={countries} />
     </div>
   );
 }

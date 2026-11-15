@@ -7,7 +7,13 @@ import { siteConfig } from '@/shared/lib/site-config';
 
 import './globals.css';
 
+/**
+ * Metadata base del sitio. `metadataBase` convierte en absolutas las URLs relativas
+ * (canonical, og:url y la imagen generada en `app/opengraph-image.tsx`).
+ * El canonical se define en cada página, porque si se pusiera aquí lo heredarían todas.
+ */
 export const metadata: Metadata = {
+  metadataBase: new URL(siteConfig.url),
   title: {
     default: `${siteConfig.name} · ${siteConfig.tagline}`,
     template: `%s · ${siteConfig.name}`,
@@ -17,10 +23,13 @@ export const metadata: Metadata = {
   keywords: ['turismo', 'Centroamérica', 'viajes', 'clima', 'lugares turísticos', 'destinos'],
   openGraph: {
     type: 'website',
-    locale: 'es_419',
+    locale: siteConfig.locale,
     siteName: siteConfig.name,
     title: `${siteConfig.name} · ${siteConfig.tagline}`,
     description: siteConfig.description,
+  },
+  twitter: {
+    card: 'summary_large_image',
   },
 };
 

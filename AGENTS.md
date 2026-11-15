@@ -345,29 +345,40 @@ El detalle técnico **solo** se registra en el servidor con `logger`. Está proh
 
 | Archivo | Uso |
 |---|---|
-| `app/**/error.tsx` | Uno por cada segmento que obtiene datos. Es un Client Component (`'use client'`), muestra un mensaje amigable y un botón **"Reintentar"** que llama a `reset()` |
-| `app/global-error.tsx` | Captura los errores del layout raíz; debe incluir sus propias etiquetas `<html>` y `<body>` |
+| `app/**/error.tsx` | Uno por cada segmento que obtiene datos. Es un Client Component (`'use client'`), muestra un mensaje amigable y un botón **"Reintentar"** que llama a `retry()` |
+| `app/global-error.tsx` | Captura los errores del layout raíz; debe incluir sus propias etiquetas `<html>` y `<body>`, y además importar estilos y fuentes |
 | `app/not-found.tsx` | Página 404 con diseño de la app y link al inicio |
 | `notFound()` | Se llama en el servidor cuando un recurso no existe (por ejemplo, `/country/XXX`) |
+
+**`retry()` y no `reset()`:** desde Next.js 16.3, los límites de error reciben `retry()`, que **vuelve a pedir los datos al servidor** y re-renderiza el segmento. `reset()` solo re-renderiza con los datos que ya tenía, así que no sirve para recuperarse de fallos temporales de una API (timeout, servicio caído). Se usa siempre `retry()`.
 
 ```tsx
 // app/country/[code]/error.tsx
 'use client';
 
-import { ErrorState } from '@/shared/components/ui/ErrorState';
+import { useEffect } from 'react';
 
-export default function CountryError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+import { ErrorState } from '@/shared/components/ui/ErrorState';
+import { reportClientError } from '@/shared/lib/report-client-error';
+
+export default function CountryError({ error, retry }: { error: unknown; retry: () => void }) {
+  useEffect(() => {
+    reportClientError(error, 'country/error');
+  }, [error]);
+
   return (
     <ErrorState
       title="No pudimos cargar este destino"
       message="Intenta de nuevo en unos segundos."
-      onRetry={reset}
+      onRetry={retry}
     />
   );
 }
 ```
 
-> En `error.tsx` no se muestra `error.message` al usuario, porque en producción puede contener información interna.
+- `error` se tipa como **`unknown`**: los errores lanzados en Client Components pueden no ser instancias de `Error`.
+- En `error.tsx` no se muestra `error.message` al usuario, porque en producción puede contener información interna. Se puede mostrar `error.digest` como **código de referencia**, porque coincide con el registro del servidor.
+- Los errores en el navegador se registran con `reportClientError` (`shared/lib/report-client-error.ts`), ya que `logger` solo escribe en el servidor.
 
 ### 2.8 Hooks de cliente
 

@@ -1,25 +1,11 @@
 import type { Metadata, Viewport } from 'next';
-import { Fraunces, Plus_Jakarta_Sans } from 'next/font/google';
 
 import { Footer } from '@/shared/components/ui/Footer';
 import { Navbar } from '@/shared/components/ui/Navbar';
+import { fontVariables } from '@/shared/lib/fonts';
 import { siteConfig } from '@/shared/lib/site-config';
 
 import './globals.css';
-
-/** Texto: sans-serif moderna y muy legible en pantallas pequeñas. */
-const jakarta = Plus_Jakarta_Sans({
-  variable: '--font-jakarta',
-  subsets: ['latin'],
-  display: 'swap',
-});
-
-/** Títulos: serif con carácter editorial, al estilo de una revista de viajes. */
-const fraunces = Fraunces({
-  variable: '--font-fraunces',
-  subsets: ['latin'],
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: {
@@ -47,7 +33,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="es" className={`${jakarta.variable} ${fraunces.variable} h-full antialiased`}>
+    <html lang="es" className={`${fontVariables} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
         <a
           href="#contenido"

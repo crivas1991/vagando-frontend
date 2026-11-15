@@ -43,6 +43,7 @@ Para cada paso se registran:
 | 2 | Paso 2 | `cee082d` | `chore: inicializar proyecto Next.js 16 con estructura por features` | Proyecto Next.js 16.4, estructura de features y shared, zod, server-only, `.gitignore` y `AGENTS.md` combinado |
 | 3 | Pasos 0–2 | `ba71e58` | `docs: agregar VIBE_CODING.md con registro del proceso` | Este documento con el registro de los pasos 0, 1 y 2 |
 | 4 | Paso 3 | `f37ccc6` | `feat(shared): agregar manejo de errores, cliente HTTP y validación de entorno` | `AppError`, `fetchJson`, `getServerEnv`, logger, `handleRouteError`, `.env.example` y migración documentada a REST Countries v5 |
+| 5 | Paso 4 | `9baea80` | `feat(ui): agregar componentes compartidos, layout y paleta de viajes` | Navbar, Footer, Card, Skeleton, Spinner, ErrorState, EmptyState, paleta, fuentes y layout |
 
 > Esta tabla se actualiza con cada commit nuevo. El hash de un commit que modifica este archivo se completa en el commit siguiente, porque un commit no puede contener su propio hash.
 
@@ -426,7 +427,81 @@ f37ccc6 feat(shared): agregar manejo de errores, cliente HTTP y validación de e
 - [x] `npm run lint`: sin errores
 - [x] `npm run build`: build exitoso (también con una ruta dinámica de prueba)
 - [x] HTML de producción revisado (`lang`, accesibilidad, metadata y créditos)
-- [ ] Revisión visual en 320px, 768px y 1280px (la hace el desarrollador con `npm run dev`)
+- [x] Revisión visual en 320px, 768px y 1280px (realizada por el desarrollador con `npm run dev`)
+
+**Commit:**
+```
+9baea80 feat(ui): agregar componentes compartidos, layout y paleta de viajes
+```
+
+---
+
+### Paso 5 — Error UI global, 404 y loading
+
+**Objetivo:** crear las pantallas globales de error, página no encontrada y carga del App Router.
+
+**Prompt principal:**
+> "Siguiendo AGENTS.md (manejo de errores), crea: app/error.tsx (Client Component, usa ErrorState, botón Reintentar con reset(), log del error); app/global-error.tsx (incluye &lt;html&gt; y &lt;body&gt;); app/not-found.tsx con diseño temático y link al inicio; app/loading.tsx con skeleton genérico. Explica la diferencia entre error.tsx y global-error.tsx."
+
+**Archivos creados / modificados:**
+
+| Archivo | Descripción |
+|---|---|
+| `app/error.tsx` | Límite de error de las páginas: `ErrorState` + "Reintentar" (`retry()`) + "Volver al inicio" + código de referencia (`digest`) |
+| `app/global-error.tsx` | Último recurso si falla el layout raíz: documento propio (`<html>`, `<body>`, estilos, fuentes y `<title>`) |
+| `app/not-found.tsx` | 404 temática ("Este destino no está en el mapa") con ilustración SVG, metadata y links a Inicio y Explorar |
+| `app/loading.tsx` | Skeleton genérico (encabezado + grilla de 6 tarjetas) con `role="status"` |
+| `shared/lib/report-client-error.ts` | Registro de errores del navegador: completo en desarrollo, solo el `digest` en producción *(extra)* |
+| `shared/lib/fonts.ts` | Fuentes compartidas entre `layout.tsx` y `global-error.tsx` *(extra)* |
+
+**Diferencia entre `error.tsx` y `global-error.tsx`:**
+
+| | `error.tsx` | `global-error.tsx` |
+|---|---|---|
+| ¿Qué captura? | Errores de las páginas y layouts **anidados** de su segmento | Errores del **layout raíz** (`app/layout.tsx`), que `error.tsx` no alcanza a capturar |
+| ¿Qué se ve? | Se renderiza **dentro** del layout: Navbar y Footer siguen visibles | **Reemplaza todo el documento**: no hay Navbar ni Footer |
+| `<html>` y `<body>` | No los lleva (los pone el layout) | **Obligatorios**, porque es un documento completo |
+| Estilos y fuentes | Los hereda del layout | Debe importarlos por su cuenta |
+| Metadata | Hereda la del layout | No admite `export const metadata`; usa `<title>` de React |
+| ¿Cuándo aparece? | Es el caso común: falló una página o una API | Rara vez: es el último recurso cuando falla la base de la app |
+
+**Iteraciones:**
+
+| # | Qué se hizo | Resultado | Ajuste / revisión |
+|---|---|---|---|
+| 1 | La IA leyó la documentación local de `error.js`, `not-found.js` y `loading.js` antes de programar | Descubrió que **desde Next 16.3 existe `retry()`** y es la opción recomendada sobre `reset()`, y que `error` ahora es de tipo `unknown` | Se usó `retry()` en lugar del `reset()` pedido en el prompt (ver decisiones) y se actualizó `AGENTS.md` 2.7 |
+| 2 | Se generaron los 4 archivos | `tsc` OK, pero **lint falló**: `no-html-link-for-pages` por usar `<a href="/">` en `global-error.tsx` | La IA había puesto un `eslint-disable`, pero lo quitó porque `AGENTS.md` 5.1 lo prohíbe. Se cambió por `<Link>` |
+| 3 | Se creó una ruta temporal `/dev-error` que lanza un error del servidor con un "secreto" (`apiKey=ABC123`) y se probó con un build de producción | Al navegador solo llegó el `digest` (`3359488600`); el secreto **no** se envió | — |
+| 4 | Se probó una URL inexistente (`/no-existe`) | HTTP **404**, página temática, título "Página no encontrada · Vagando" y `noindex` | — |
+
+**Decisiones técnicas:**
+
+| Decisión | Motivo |
+|---|---|
+| **`retry()` en lugar de `reset()`** (cambio respecto al prompt) | `reset()` re-renderiza sin volver a pedir datos, así que si falló una API, falla igual. `retry()` vuelve a consultar al servidor, que es lo que corrige un error temporal |
+| `error` tipado como `unknown` | Así lo define la documentación de Next 16; un Client Component puede lanzar valores que no son `Error` |
+| Se muestra el `digest` como "Código de referencia" | Permite relacionar lo que ve el usuario con el log del servidor, sin exponer detalles |
+| `reportClientError` en lugar de `logger` | `logger` solo escribe en el servidor por diseño. En el navegador, en producción solo se registra el `digest` |
+| `global-error.tsx` sin Navbar ni Footer | Si falló el layout, esos componentes podrían ser la causa |
+| Fuentes extraídas a `shared/lib/fonts.ts` | `global-error.tsx` reemplaza al layout y necesita las mismas fuentes, así se evita duplicar la configuración |
+| `loading.tsx` en la raíz | Además del skeleton, crea el límite de `<Suspense>` que `cacheComponents` exige para los datos dinámicos (`AGENTS.md` 3.9) |
+
+**Desafíos y soluciones:**
+
+| Desafío | Solución con apoyo de la IA |
+|---|---|
+| El prompt pedía `reset()`, pero la versión instalada de Next recomienda `retry()` | La IA leyó la documentación incluida en `node_modules` (como indica `AGENTS.md`), explicó la diferencia y usó `retry()` |
+| Lint rechazó `<a href="/">` en `global-error.tsx` | En lugar de desactivar la regla, se corrigió el código con `<Link>`, respetando `AGENTS.md` 5.1 |
+| Con `curl` no se ve la UI de `error.tsx`, porque se renderiza en el navegador | Se verificó en el HTML que solo viaja el `digest` (sin el secreto), y la vista final se revisa en el navegador |
+| El log del servidor de Next.js muestra el mensaje original del error | Es el comportamiento esperado: el detalle queda **solo en el servidor**. Los errores reales de la app nunca incluyen keys, porque `fetchJson` quita los query params (Paso 3) |
+
+**Validación:**
+- [x] `npx tsc --noEmit`: sin errores
+- [x] `npm run lint`: sin errores (sin `eslint-disable`)
+- [x] `npm run build`: build exitoso
+- [x] Error del servidor: el secreto no llega al navegador, solo el `digest`
+- [x] 404: HTTP 404, página temática y `noindex`
+- [x] Ruta temporal `/dev-error` eliminada antes del commit
 
 **Commit:**
 ```

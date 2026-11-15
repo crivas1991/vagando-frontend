@@ -55,6 +55,7 @@
 | 11.2 | *"Validemos que las coordenadas pertenezcan a los 7 países; corrijamos los 4 puntos de severidad media; confirma y documenta"* | 5 correcciones verificadas |
 | 11.3 | *"Revisa rendimiento: caché/revalidate por API, next/image, tamaño de los Client Components y metadata para SEO"* | Informe de rendimiento (pendiente de aplicar) |
 | 12 | *"Con base en este historial, ayúdame a redactar VIBE_CODING.md con las secciones…"* | Este documento |
+| 13 | *"Dame un checklist para desplegar Vagando en Vercel…"* + *"Ayúdame con un checklist de si se cumplen estos puntos [entregables]"* + *"prepara el README y el Paso 13"* | Deploy en https://vagando-frontend.vercel.app, verificación en producción y `README.md` |
 
 **Prompts de control usados durante todo el proyecto:**
 - *"Aún no generes código, te daré más contexto."* Así el contexto se completaba antes de empezar.
@@ -1160,6 +1161,77 @@ c3b89ac fix: corregir hallazgos de severidad alta y media de la revisión
 **Commit:**
 ```
 51a9cd7 docs(vibe): reorganizar VIBE_CODING.md y documentar APIs deprecadas
+```
+
+---
+
+### Paso 13 — Deploy en Vercel, verificación en producción y README
+
+**Objetivo:** publicar la app, comprobar que funciona en producción y completar los entregables.
+
+**Prompts principales:**
+> "Dame un checklist para desplegar Vagando en Vercel: conectar el repo de GitHub, configurar GEOAPIFY_API_KEY en Environment Variables, verificar el build y probar en producción todas las rutas, los estados de error y el responsive."
+>
+> "Ayúdame con un checklist de si se cumplen estos puntos: repositorio público en GitHub, código fuente, historial de commits, .env.example, README.md con instalación, uso y enlace al despliegue, documento de Vibe Coding y URL pública."
+>
+> "Sí, claro, prepáralos" (README y Paso 13).
+
+Durante el deploy, el desarrollador compartió capturas de las pantallas de Vercel ("¿qué debo hacer?", "¿cómo debería configurar?"), y la IA explicó cada campo.
+
+**Iteraciones:**
+
+| # | Situación | Qué aportó la IA |
+|---|---|---|
+| 1 | El prompt del checklist solo mencionaba `GEOAPIFY_API_KEY` | Advirtió que **también hace falta `REST_COUNTRIES_API_KEY`**; sin ella, el build falla al prerenderizar la portada (comportamiento documentado en el Paso 6) |
+| 2 | Primera vez en Vercel: pantalla "Instala la aplicación de GitHub" | Pasos para conectar GitHub dando acceso **solo** al repositorio `vagando-frontend` |
+| 3 | Pantalla de configuración del proyecto | Qué dejar por defecto (preset Next.js, comandos de build), cómo cargar las 2 variables, marcarlas como **sensibles** (🔒) y **no** usar "Import .env" |
+| 4 | Aviso `npm warn Unknown env config…` durante el build | Explicó que es un aviso de npm propio del entorno de Vercel e inofensivo; el build terminó bien |
+| 5 | Deploy terminado | La IA ejecutó las pruebas automatizables contra producción (ver la tabla) |
+| 6 | Checklist de entregables | Se verificó contra GitHub (sin iniciar sesión) y contra producción: **faltaba el `README.md`**, que todavía era la plantilla de `create-next-app` |
+
+**Verificación en producción** (`https://vagando-frontend.vercel.app`):
+
+| Prueba | Resultado |
+|---|---|
+| Rutas `/`, `/explore`, `/favorites`, `/country/SLV`, `/country/GTM`, `/country/SLV/places`, `/country/PAN/places` | **7/7 → 200**, ~0.3 s ✅ |
+| Contenido | Portada, tarjetas con ❤️, ficha del país con el **clima real** (27.9 °C) y pronóstico ✅ |
+| `/api/countries`, `/api/weather` y `/api/places` con las keys de Vercel | 200 con datos reales ✅ |
+| Coordenadas de Tokio, categoría inválida, latitud 999 y búsqueda de 51 caracteres | **400** con mensaje en español ✅ |
+| `/cualquier-cosa` | **404** temática ✅ |
+| `/country/XXX` | 404 temática + `noindex` (HTTP 200, limitación conocida) ✅ |
+| **Keys en el HTML, las respuestas de la API y los 17 archivos JS del cliente** | **0 coincidencias** ✅ |
+| Interacción, Offline, responsive en celular y teclado | Pruebas manuales del desarrollador con el checklist |
+
+**Checklist de entregables:**
+
+| Entregable | Estado |
+|---|---|
+| Repositorio público en GitHub | ✅ (`private: false` según la API de GitHub) |
+| Código fuente completo | ✅ (115 archivos; `.env.local` no está versionado) |
+| Historial con mensajes descriptivos | ✅ (20 commits, todos en formato Conventional Commits) |
+| `.env.example` documentado | ✅ (2 variables y 30 líneas de documentación) |
+| `README.md` con instalación, uso y enlace al deploy | ✅ Creado en este paso |
+| Documento de Vibe Coding | ✅ (`VIBE_CODING.md`; las capturas se comparten por separado) |
+| URL pública en producción | ✅ https://vagando-frontend.vercel.app |
+
+**`README.md` creado:** descripción, link a producción, funcionalidades, rutas y endpoints, stack, APIs, instalación paso a paso, variables de entorno, scripts, arquitectura por features, manejo de errores, despliegue en Vercel, limitaciones conocidas, documentación y créditos.
+
+**Evidencias visuales:** el desarrollador reunió sus capturas del proceso (prompts, respuestas de la IA, desarrollo y despliegue) en un PDF. Se decidió **no versionarlo y compartirlo por separado**: el repositorio es público, y la IA no podía revisar de forma automática si alguna de las 23 imágenes mostraba las API keys (en el texto del PDF no había ninguna). El `README.md` indica que las evidencias se comparten aparte.
+
+**Decisiones técnicas:**
+
+| Decisión | Motivo |
+|---|---|
+| Variables marcadas como *Sensitive* en Vercel | Quedan cifradas y no se pueden volver a leer desde el panel |
+| Entornos "Production y Preview" | En local se usa `.env.local`; no hace falta subirlas al entorno Development |
+| Acceso de Vercel solo al repositorio del proyecto | Mínimo privilegio sobre la cuenta de GitHub |
+| El README documenta las limitaciones conocidas | Transparencia: quien revise el proyecto sabe qué es intencional y qué queda pendiente |
+
+**Pendiente:** aplicar la optimización de caché del Paso 11.3 (`'use cache: remote'`), que protege la cuota de REST Countries en producción.
+
+**Commit:**
+```
+(pendiente de autorización)
 ```
 
 ---

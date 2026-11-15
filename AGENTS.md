@@ -202,6 +202,8 @@ Toda falla debe ser **tipada, controlada y segura**: el usuario ve un mensaje cl
 | `shared/lib/logger.ts` | Logger de servidor (`error`, `warn`, `info`) |
 | `shared/lib/api-response.ts` | Helper `handleRouteError(error)` para Route Handlers |
 | `shared/lib/fetch-api.ts` | `fetchApi` y `ApiRequestError` para los hooks de cliente que consultan `/api/*` |
+| `shared/lib/cached-result.ts` | `CachedResult`, `toCachedFailure` y `unwrapCachedResult` para errores dentro de `'use cache'` |
+| `shared/lib/coordinates.ts` | `coordinatesSchema` (lat/lon con rangos) y `roundCoordinate`, compartidos por clima y lugares |
 | `shared/lib/read-api-error.ts` | Lee el mensaje del formato `{ error: { code, message } }` |
 | `shared/lib/report-client-error.ts` | Registro de errores en el navegador (`error.tsx`, `global-error.tsx`) |
 
@@ -273,6 +275,26 @@ export async function fetchJson<T>(
 ```
 
 > **Caché con `cacheComponents`:** el proyecto tiene `cacheComponents: true` en `next.config.ts`. En este modo, la caché **no** se configura en `fetch` (`next: { revalidate }`), sino en las funciones de los services con la directiva `'use cache'` y `cacheLife()`. Por eso `fetchJson` no recibe opciones de caché. Ver `node_modules/next/dist/docs/01-app/03-api-reference/01-directives/use-cache.md`.
+
+> **Errores dentro de `'use cache'`: nunca se lanzan, se devuelven.** Un `AppError` lanzado dentro de una función con `'use cache'` cruza una frontera de serialización. En producción sale como un `Error` genérico ("An error occurred in the Server Components render...") y **se pierden la clase, el código y el status**. Se detectó en el Paso 9: una key inválida respondía 500 en lugar de 502. Patrón obligatorio (`shared/lib/cached-result.ts`):
+>
+> ```ts
+> async function loadX(): Promise<CachedResult<X>> {
+>   'use cache';
+>   try {
+>     const data = await requestX();       // puede lanzar AppError
+>     cacheLife('days');                    // éxito: vida normal
+>     return { ok: true, data };
+>   } catch (error) {
+>     cacheLife('seconds');                 // falla: casi no se cachea
+>     return toCachedFailure(error, 'x');   // resultado serializable + log en servidor
+>   }
+> }
+>
+> export async function getX(): Promise<X> {
+>   return unwrapCachedResult(await loadX()); // fuera de la caché: vuelve a lanzar el AppError real
+> }
+> ```
 
 > Cuidado: las URLs con API key **no se registran completas** en el logger. Se registra el host y la ruta, nunca los query params sensibles.
 

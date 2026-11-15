@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { coordinatesSchema } from '@/shared/lib/coordinates';
+
 /**
  * Schemas de Open-Meteo (AGENTS.md 2.4).
  * `weatherSchema` valida la respuesta y la transforma al modelo de la app:
@@ -58,13 +60,4 @@ export const weatherSchema = openMeteoResponseSchema.transform((raw) => ({
 }));
 
 /** Query params de `GET /api/weather` (y validación de entrada del service). */
-export const weatherQuerySchema = z.object({
-  lat: z.coerce
-    .number({ error: 'El parámetro lat debe ser un número.' })
-    .min(-90, 'La latitud debe estar entre -90 y 90.')
-    .max(90, 'La latitud debe estar entre -90 y 90.'),
-  lon: z.coerce
-    .number({ error: 'El parámetro lon debe ser un número.' })
-    .min(-180, 'La longitud debe estar entre -180 y 180.')
-    .max(180, 'La longitud debe estar entre -180 y 180.'),
-});
+export const weatherQuerySchema = coordinatesSchema;

@@ -744,6 +744,82 @@ c017873 feat(countries): agregar página /explore con búsqueda y filtro por pob
 
 ---
 
+### Paso 9 — Feature `places` (Geoapify) y página `/country/[code]/places`
+
+**Objetivo:** mostrar lugares turísticos cerca de la capital de cada país, con filtro por categoría.
+
+**Prompt principal:**
+> "Implementa el feature places con Geoapify Places API: schema zod tolerante (muchos lugares vienen sin nombre o sin datos; filtra los que no tengan nombre); services/places.service.ts ('server-only'): getPlacesNear(lat, lon, kind) usando la key desde env.ts. Mapea 401/403 a AppError (key inválida, sin exponer la key) y 429 a RATE_LIMITED. Route Handler app/api/places/route.ts con ?lat=&lon=&kind= validados (kind restringido a un enum: sights, museums, nature, beaches, food; mapea cada uno a categorías de Geoapify: tourism.sights, entertainment.museum, natural, beach, catering.restaurant). Components: PlaceCard (con imagen de respaldo si no hay foto), PlacesList, KindFilter ('use client'). app/country/[code]/places/page.tsx: lugares cerca de la capital, con filtro por categoría. loading.tsx, error.tsx y EmptyState cuando no hay lugares. No olvides agregar un link desde el detalle del país hacia /places."
+
+> **Nota de proceso:** el prompt se envió primero con la indicación de *no hacer nada todavía*, para que el desarrollador tomara capturas; la IA solo confirmó lo recibido y adelantó consideraciones. Luego llegó el prompt definitivo.
+
+**Archivos creados / modificados:**
+
+| Archivo | Descripción |
+|---|---|
+| `features/places/utils/placeKinds.ts` | Las 5 categorías: etiqueta, emoji, categoría de Geoapify y **radio por categoría** |
+| `features/places/schemas/place.schema.ts` | Schema **tolerante** del GeoJSON; descarta los lugares sin nombre; solo acepta fotos de Wikimedia y sitios web `http(s)`; `placesQuerySchema` con el enum de `kind` |
+| `features/places/services/places.service.ts` | `getPlacesNear(lat, lon, kind)`: ordena por distancia, cachea 1 día y usa mensajes de error específicos |
+| `features/places/hooks/usePlaces.ts` | `useState` + `useEffect` con `AbortController`, `isLoading` derivado, `retry` y `dataKind` |
+| `features/places/components/PlaceCard.tsx` | Tarjeta con categoría, dirección, distancia a la capital, "Ver en el mapa" (OpenStreetMap) y sitio web |
+| `features/places/components/PlaceImage.tsx` | Foto o **imagen de respaldo temática** (degradado + paisaje + emoji por categoría) |
+| `features/places/components/PlacesList.tsx` | Grilla con `EmptyState` que ofrece cambiar de categoría |
+| `features/places/components/KindFilter.tsx` | Botones con `aria-pressed`; en móvil se desplazan en horizontal |
+| `features/places/components/PlacesExplorer.tsx` | Filtro + estados de carga, error, vacío y resultados |
+| `features/places/components/PlacesSkeleton.tsx` | Skeleton de la grilla |
+| `app/api/places/route.ts` | `GET /api/places?lat=&lon=&kind=` |
+| `app/country/[code]/places/` | `page.tsx` (con `generateStaticParams` y metadata), `loading.tsx` y `error.tsx` |
+| `shared/lib/coordinates.ts` | `coordinatesSchema` y `roundCoordinate`, movidos desde `weather` para compartirlos *(refactor)* |
+| `shared/lib/cached-result.ts` | Patrón para errores dentro de `'use cache'` *(corrección, ver iteración 4)* |
+| `next.config.ts` | `remotePatterns` para `upload.wikimedia.org` |
+
+**Iteraciones:**
+
+| # | Qué se hizo | Resultado | Ajuste / revisión |
+|---|---|---|---|
+| 1 | La IA consultó Geoapify con la key real (sin mostrarla) en las 5 categorías | **Ninguno de ~90 lugares trae foto**; en `natural` solo 5 de 20 tienen nombre; las playas están a más de 10 km de San Salvador; key inválida → 401; categoría inválida → 400 | La imagen de respaldo será el caso normal; se usa un radio distinto por categoría (10 a 120 km) |
+| 2 | Se generó el feature; durante la revisión se detectó un caso borde | Mientras carga otra categoría, las tarjetas viejas habrían mostrado la etiqueta de la categoría nueva | `usePlaces` devuelve también `dataKind` |
+| 3 | Pruebas con la key real | Las 5 categorías responden ordenadas por distancia; en Guatemala, el radio de 120 km encuentra playas; errores 400 en español; **la key no aparece** en la API, el HTML ni el log | — |
+| 4 | Prueba con **key inválida** en un build de producción | **Bug:** respondía `500 INTERNAL` en lugar de `502 UPSTREAM_ERROR`. El log mostró que un `AppError` lanzado dentro de `'use cache'` sale como un `Error` genérico | Se aplicó el patrón de la documentación de Next (*conditional cache lifetimes*): la falla se **devuelve** con `cacheLife('seconds')` y se vuelve a lanzar fuera de la caché. Se aplicó a **los 3 services** (countries, weather y places) |
+| 5 | Nueva prueba con key inválida | `502 UPSTREAM_ERROR` "No pudimos obtener los lugares turísticos en este momento", la URL en el log **sin key**, y clima y países siguen funcionando | — |
+
+**Decisiones técnicas:**
+
+| Decisión | Motivo |
+|---|---|
+| El listado se carga en el **cliente** (`usePlaces` → `/api/places`) | El filtro es interactivo; cumple `AGENTS.md` 3.3 (el cliente solo consume Route Handlers) y 3.5 (`usePlaces` con `useState`/`useEffect`) |
+| Radio por categoría (10–120 km) | Museos y restaurantes están en la ciudad; playas y naturaleza, lejos de la capital |
+| Se piden 48 lugares y se muestran hasta 24 | Compensa los que se descartan por no tener nombre |
+| Fotos solo de `upload.wikimedia.org` | `next/image` exige dominios declarados; aceptar cualquier URL externa sería inseguro |
+| Imagen de respaldo con el estilo de cada categoría | Geoapify casi nunca trae fotos; un recuadro gris haría ver la página rota |
+| "Ver en el mapa" con OpenStreetMap | No requiere API key (los mapas estáticos de Geoapify expondrían la key en el `src` de la imagen) |
+| `coordinatesSchema` en `shared/lib` | Clima y lugares validan lo mismo; `AGENTS.md` 1.4: lo compartido va a `shared` |
+| Mensajes de error específicos de lugares en el service | El usuario ve "lugares turísticos" y no un genérico "servicio externo" |
+
+**Desafíos y soluciones:**
+
+| Desafío | Solución con apoyo de la IA |
+|---|---|
+| **Los errores dentro de `'use cache'` pierden su tipo en producción** (también afectaba, sin que se hubiera notado, a `/api/countries` y `/api/weather`) | Patrón `CachedResult` con lifetimes condicionales, tomado de la documentación local de Next; documentado como regla en `AGENTS.md` 2.3 |
+| La key de Geoapify solo se acepta en la URL | `fetchJson` registra la URL sin query params y `logger.redact()` oculta `apiKey`; verificado en las respuestas, el HTML y los logs |
+| Datos incompletos de OpenStreetMap (sin nombre, sin foto) | Schema tolerante + filtro + imagen de respaldo |
+| Resultados de cadenas en "Gastronomía" (por ejemplo, Pizza Hut) | Son datos reales de OpenStreetMap. Mejora posible: priorizar los restaurantes sin `brand` |
+
+**Validación:**
+- [x] `npm run build`: exitoso (24 páginas; `/api/places` dinámica; páginas de lugares estáticas o con prerenderizado parcial)
+- [x] `npx tsc --noEmit` y `npm run lint`: sin errores
+- [x] `/api/places`: las 5 categorías, categoría por defecto y errores 400 (categoría inválida, lat fuera de rango o faltante)
+- [x] Key inválida → 502 con mensaje amigable, sin exponer la key
+- [x] Link "Ver lugares turísticos" desde el detalle del país
+- [ ] Prueba en el navegador: filtro de categorías, estado vacío, imagen de respaldo y Offline → error con "Reintentar" *(la realiza el desarrollador)*
+
+**Commit:**
+```
+(pendiente de autorización)
+```
+
+---
+
 <!--
 PLANTILLA PARA LOS SIGUIENTES PASOS (copiar y completar)
 

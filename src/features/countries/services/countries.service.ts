@@ -2,6 +2,7 @@ import 'server-only';
 
 import { cacheLife } from 'next/cache';
 
+import { toCachedFailure, unwrapCachedResult, type CachedResult } from '@/shared/lib/cached-result';
 import { getServerEnv } from '@/shared/lib/env';
 import { AppError } from '@/shared/lib/errors';
 import { fetchJson } from '@/shared/lib/http';
@@ -36,19 +37,8 @@ const RESPONSE_FIELDS = [
 
 const allowedCodes = new Set<string>(CENTRAL_AMERICA_CODES);
 
-/**
- * Países de Centroamérica, ordenados por nombre en español.
- *
- * Estrategia de cuota (plan gratuito: 1000 peticiones/mes):
- * - UNA sola petición trae los 7 países y se cachea con `'use cache'` + `cacheLife('days')`
- *   (se revalida cada día, como un `revalidate: 86400`).
- * - `searchCountries` y `getCountryByCode` reutilizan esta lista: buscar o abrir un país
- *   no gasta peticiones extra.
- */
-export async function getCentralAmericaCountries(): Promise<Country[]> {
-  'use cache';
-  cacheLife('days');
-
+/** Petición a REST Countries. Puede lanzar `AppError`; la llama solo `loadCentralAmericaCountries`. */
+async function requestCentralAmericaCountries(): Promise<Country[]> {
   const { REST_COUNTRIES_API_KEY } = getServerEnv();
 
   const url = new URL(`${REST_COUNTRIES_BASE_URL}/subregion/${encodeURIComponent('Central America')}`);
@@ -79,6 +69,37 @@ export async function getCentralAmericaCountries(): Promise<Country[]> {
   }
 
   return countries.sort((a, b) => a.name.localeCompare(b.name, 'es'));
+}
+
+/**
+ * Versión cacheada. Devuelve un resultado serializable en lugar de lanzar
+ * (un `AppError` lanzado dentro de `'use cache'` pierde su tipo, ver `shared/lib/cached-result.ts`):
+ * - éxito → se cachea 1 día (`cacheLife('days')`, equivalente a `revalidate: 86400`),
+ * - falla → se cachea solo unos segundos, para reintentar pronto.
+ */
+async function loadCentralAmericaCountries(): Promise<CachedResult<Country[]>> {
+  'use cache';
+
+  try {
+    const countries = await requestCentralAmericaCountries();
+    cacheLife('days');
+    return { ok: true, data: countries };
+  } catch (error) {
+    cacheLife('seconds');
+    return toCachedFailure(error, 'countries');
+  }
+}
+
+/**
+ * Países de Centroamérica, ordenados por nombre en español.
+ *
+ * Estrategia de cuota (plan gratuito: 1000 peticiones/mes):
+ * - UNA sola petición trae los 7 países y se cachea 1 día.
+ * - `searchCountries` y `findCountryByCode` reutilizan esta lista: buscar o abrir un país
+ *   no gasta peticiones extra.
+ */
+export async function getCentralAmericaCountries(): Promise<Country[]> {
+  return unwrapCachedResult(await loadCentralAmericaCountries());
 }
 
 /** Busca países por nombre, capital o código. Sin búsqueda, devuelve todos. */

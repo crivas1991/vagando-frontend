@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { Card } from '@/shared/components/ui/Card';
 
 import type { Country } from '@/features/countries/types/country.types';
+// Entre features solo se importa por el barrel público (AGENTS.md 1.4).
+import { FavoriteButton } from '@/features/favorites';
 import { formatPopulationCompact } from '@/features/countries/utils/formatPopulation';
 
 type CountryCardProps = {
@@ -12,10 +14,10 @@ type CountryCardProps = {
   headingLevel?: 'h2' | 'h3';
 };
 
-/** Tarjeta de un país. Toda la tarjeta es un enlace a su detalle. */
+/** Tarjeta de un país. Toda la tarjeta es un enlace a su detalle, con el corazón de favoritos encima. */
 export function CountryCard({ country, headingLevel: Heading = 'h3' }: CountryCardProps) {
   return (
-    <Card as="article" padding="none" interactive className="h-full">
+    <Card as="article" padding="none" interactive className="relative h-full">
       <Link href={`/country/${country.code}`} className="flex h-full flex-col">
         <div className="relative aspect-[3/2] w-full overflow-hidden border-b border-border bg-surface-muted">
           <Image
@@ -51,6 +53,8 @@ export function CountryCard({ country, headingLevel: Heading = 'h3' }: CountryCa
           </dl>
         </div>
       </Link>
+      {/* Fuera del <Link>: un botón no puede ir dentro de un enlace (HTML inválido) */}
+      <FavoriteButton code={country.code} name={country.name} className="absolute right-3 top-3 z-10" />
     </Card>
   );
 }

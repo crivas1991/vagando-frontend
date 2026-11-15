@@ -821,6 +821,72 @@ c017873 feat(countries): agregar página /explore con búsqueda y filtro por pob
 
 ---
 
+### Paso 10 — Feature `favorites` y página `/favorites`
+
+**Objetivo:** permitir guardar destinos favoritos en el navegador y verlos en su propia página.
+
+**Prompt principal:**
+> "Implementa el feature favorites: hooks/useFavorites.ts ('use client'): useState + useEffect para leer y escribir en localStorage, con try/catch (localStorage puede fallar en modo incógnito) y validación zod de lo leído. Evita errores de hidratación (solo leer localStorage dentro de useEffect). Components: FavoriteButton (corazón en CountryCard y en el detalle), FavoritesList. app/favorites/page.tsx con EmptyState si no hay favoritos."
+
+**Archivos creados / modificados:**
+
+| Archivo | Descripción |
+|---|---|
+| `features/favorites/schemas/favorites.schema.ts` | Valida lo leído de `localStorage`: arreglo de códigos ISO de 3 letras, máximo 50 y sin duplicados |
+| `features/favorites/utils/favoritesStorage.ts` | `readFavorites`/`writeFavorites` con `try/catch`, **copia en memoria** de respaldo y evento de sincronización |
+| `features/favorites/hooks/useFavorites.ts` | `useState` + `useEffect`: lee después del montaje, se suscribe a cambios (esta pestaña y otras) y expone `isReady` |
+| `features/favorites/components/FavoriteButton.tsx` | Corazón (`icon`) para tarjetas y botón con texto (`full`) para el detalle, con `aria-pressed` |
+| `features/favorites/components/FavoriteCard.tsx` | Tarjeta del favorito con su botón para quitarlo |
+| `features/favorites/components/FavoritesList.tsx` | Skeleton hasta leer `localStorage`, estado vacío y lista |
+| `features/favorites/types/favorites.types.ts` | `FavoriteCountry`: tipo estructural para no depender de `countries` |
+| `features/countries/components/CountryCard.tsx` | Corazón en la esquina de la tarjeta (**fuera** del `<Link>`) |
+| `features/countries/components/CountryDetail.tsx` | Botón "Guardar en favoritos" junto a "Ver lugares turísticos" |
+| `app/favorites/page.tsx` y `loading.tsx` | Página de favoritos (Server Component) y su skeleton |
+
+**Iteraciones:**
+
+| # | Qué se hizo | Resultado | Ajuste / revisión |
+|---|---|---|---|
+| 1 | Antes de programar, la IA probó con archivos temporales si `react-hooks/set-state-in-effect` permitía la lectura inicial de `localStorage` dentro de `useEffect` | Lint aceptó el patrón (la lectura se hace dentro de una función que también se usa como listener de eventos) | Se usó `useState` + `useEffect`, tal como pedía el prompt |
+| 2 | Diseño de la dependencia entre features | `CountryCard` (countries) necesita `FavoriteButton` (favorites), y `FavoritesList` (favorites) necesita datos de países: riesgo de **dependencia circular** | `favorites` define su propio tipo estructural `FavoriteCountry` y recibe los países por props; solo `countries` importa `favorites` |
+| 3 | Colocación del corazón en `CountryCard` | Toda la tarjeta es un `<Link>`, y un `<button>` dentro de un `<a>` es HTML inválido | El botón va **fuera** del enlace, posicionado en la esquina con `absolute` |
+| 4 | Build y revisión del HTML del servidor | Las 5 rutas existen; `/favorites` es estática; el servidor envía el **skeleton** (no el estado vacío); 7 corazones con `aria-pressed="false"` y ninguno dentro de un `<a>` | — |
+
+**Decisiones técnicas:**
+
+| Decisión | Motivo |
+|---|---|
+| Se guardan **solo los códigos** (`["SLV","PAN"]`) | Los datos del país siempre vienen frescos de REST Countries; no se duplica información en el navegador |
+| Validación con zod de lo leído | `localStorage` puede tener datos corruptos o manipulados; si no son válidos, se reinicia sin romper la app |
+| `isReady` + skeleton | El servidor no conoce `localStorage`: sin esto, se vería "Aún no tienes favoritos" por un instante antes de mostrar la lista |
+| Botón deshabilitado hasta `isReady` | El primer clic nunca usa un estado incorrecto |
+| Sincronización con un evento propio + evento `storage` | Al quitar un favorito, se actualizan todos los corazones y la lista, incluso en otras pestañas |
+| Escritura que lee el valor actual antes de modificarlo | Dos componentes no se pisan los cambios |
+| **Copia en memoria** si `localStorage` falla | En modo incógnito estricto o con el almacenamiento lleno, los favoritos siguen funcionando durante la sesión |
+| La página obtiene los países en el servidor (lista cacheada) | 0 peticiones extra a REST Countries; el cliente solo filtra por los códigos guardados |
+
+**Desafíos y soluciones:**
+
+| Desafío | Solución con apoyo de la IA |
+|---|---|
+| Hidratación: el servidor no puede leer `localStorage` | Estado inicial vacío (igual al del servidor) + lectura en `useEffect` + `isReady` |
+| Dependencia circular entre `countries` y `favorites` | Tipo estructural en `favorites` y dirección única de dependencias, documentada en `AGENTS.md` 1.4 |
+| Botón dentro de un enlace | Botón fuera del `<Link>` y posicionado encima de la tarjeta |
+
+**Validación:**
+- [x] `npm run build`: exitoso; **las 5 rutas** (`/`, `/explore`, `/country/[code]`, `/country/[code]/places`, `/favorites`)
+- [x] `npx tsc --noEmit` y `npm run lint`: sin errores
+- [x] `favorites` no importa de `countries` (verificado con `grep`)
+- [x] HTML del servidor: skeleton en `/favorites`, corazones accesibles y fuera de los enlaces
+- [ ] Prueba en el navegador: guardar y quitar, persistencia al recargar, sincronización entre tarjeta, detalle y lista, sin aviso de hidratación en la consola *(la realiza el desarrollador)*
+
+**Commit:**
+```
+(pendiente de autorización)
+```
+
+---
+
 <!--
 PLANTILLA PARA LOS SIGUIENTES PASOS (copiar y completar)
 

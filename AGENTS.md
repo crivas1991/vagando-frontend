@@ -124,6 +124,14 @@ import { CountryCard } from '@/features/countries/components/CountryCard';
 
 > Dentro de un mismo feature sí se permiten imports internos entre sus propias carpetas.
 
+**Sin dependencias circulares entre features.** Si un feature importa a otro, la dirección es única y se documenta aquí:
+
+| Feature | Importa de | Para qué |
+|---|---|---|
+| `countries` | `favorites` | `FavoriteButton` en `CountryCard` y `CountryDetail` |
+| `favorites` | — (ninguno) | Recibe los países como props con un tipo estructural propio (`FavoriteCountry`), sin importar `countries` |
+| `weather`, `places` | — (ninguno) | Reciben coordenadas como props; la página (`app/`) las obtiene de `countries` |
+
 ### 1.5 `index.ts` y `server.ts` como API pública
 
 Cada feature tiene **dos** puntos de entrada públicos:

@@ -5,6 +5,8 @@ import { buttonClassName } from '@/shared/components/ui/Button';
 import { Card } from '@/shared/components/ui/Card';
 
 import type { Country } from '@/features/countries/types/country.types';
+// Entre features solo se importa por el barrel público (AGENTS.md 1.4).
+import { FavoriteButton } from '@/features/favorites';
 import { formatPopulation } from '@/features/countries/utils/formatPopulation';
 
 type CountryDetailProps = {
@@ -57,9 +59,12 @@ export function CountryDetail({ country }: CountryDetailProps) {
             <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">{country.name}</h1>
             {country.officialName !== country.name && <p className="text-muted">{country.officialName}</p>}
           </div>
-          <Link href={`/country/${country.code}/places`} className={buttonClassName('primary')}>
-            Ver lugares turísticos
-          </Link>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link href={`/country/${country.code}/places`} className={buttonClassName('primary')}>
+              Ver lugares turísticos
+            </Link>
+            <FavoriteButton code={country.code} name={country.name} variant="full" />
+          </div>
         </div>
       </header>
 

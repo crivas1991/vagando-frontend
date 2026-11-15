@@ -1,37 +1,183 @@
 # 🤖 VIBE_CODING.md — Proceso de desarrollo de Vagando
 
-Este documento registra cómo se construyó **Vagando** usando **Vibe Coding**: la IA funciona como copiloto de desarrollo y el desarrollador conserva el control de las decisiones y de la calidad del código.
+**Vagando** es una app de turismo para Centroamérica: información de los 7 países, clima en tiempo real, lugares turísticos y favoritos. Se construyó con **Vibe Coding**: la IA trabajó como copiloto de desarrollo y el desarrollador conservó el control de las decisiones, la revisión y cada commit.
 
-Para cada paso se registran:
-- los **prompts** principales,
-- las **iteraciones** con la IA,
-- las **decisiones técnicas**,
-- los **desafíos** encontrados y cómo se resolvieron,
-- el **commit** resultante.
+**Contenido**
+1. [Herramienta de IA usada](#1-herramienta-de-ia-usada)
+2. [Prompts principales (por paso)](#2-prompts-principales-por-paso)
+3. [Iteraciones](#3-iteraciones)
+4. [Decisiones técnicas](#4-decisiones-técnicas)
+5. [Desafíos y soluciones con IA](#5-desafíos-y-soluciones-con-ia)
+6. [Lecciones aprendidas](#6-lecciones-aprendidas)
+- [Historial de commits](#-historial-de-commits)
+- [Anexo A — Registro detallado por paso](#-anexo-a--registro-detallado-por-paso)
 
 ---
 
-## 🧱 Stack tecnológico
+## 1. Herramienta de IA usada
 
-| Tecnología | Uso |
-|---|---|
-| **Next.js 16** (App Router) | Framework: rutas, Server/Client Components y Route Handlers |
-| **TypeScript** (modo `strict`) | Tipado estático de todo el proyecto |
-| **Tailwind CSS** | Estilos y diseño responsive mobile-first |
-
-## 🛠️ Herramienta de IA
-
-| Herramienta | Modelo | Uso |
+| Herramienta | Modelo | Rol en el proyecto |
 |---|---|---|
-| Claude Code (CLI) | Claude Opus 5.5 | Copiloto de desarrollo: definición de reglas, generación de código, revisión y corrección |
+| **Claude Code** (CLI, en la terminal) | Claude Opus 5.5 | Copiloto: redactó las reglas del proyecto, generó y probó el código, consultó la documentación local de Next.js y las APIs reales, revisó el proyecto contra las reglas y propuso los commits |
 
-## 🔁 Metodología de trabajo
+**Stack:** Next.js 16.4 (App Router, `cacheComponents`), TypeScript en modo `strict`, Tailwind CSS 4 y zod 4.
 
-1. **Contexto antes que código:** se le da a la IA el contexto por partes y se le pide explícitamente *"aún no generes código"* hasta tener todo definido.
-2. **Reglas primero:** antes de escribir código se crea `AGENTS.md` con las reglas que la IA debe seguir durante todo el proyecto.
-3. **Pasos pequeños:** cada paso produce un resultado que se puede verificar y termina en un commit.
-4. **Validación humana:** cada resultado se revisa antes de aprobarlo. La IA **no hace commit ni push sin autorización**.
-5. **Registro continuo:** este documento se actualiza al terminar cada paso, no al final del proyecto.
+### Metodología de trabajo
+
+1. **Contexto antes que código.** El contexto se entregó por partes y se le pidió explícitamente a la IA *"aún no generes código"* hasta tenerlo completo.
+2. **Reglas primero.** Antes de la primera línea de código se escribió `AGENTS.md` con las reglas que la IA debía seguir en todo el proyecto: arquitectura por features, manejo de errores, requisitos, convenciones y testing.
+3. **Documentación antes que memoria.** Next.js 16 trae su propia documentación en `node_modules/next/dist/docs/`. La IA la consultó antes de cada paso, en lugar de confiar en lo que "sabía" de versiones anteriores.
+4. **Pasos pequeños y verificables.** Cada paso terminó con `tsc`, `lint` y `build`, pruebas reales contra las APIs y un commit.
+5. **Control humano.** La IA **no hizo ningún commit ni push sin autorización explícita**: preparaba los cambios, proponía el mensaje y esperaba.
+6. **Revisar y corregir por separado.** En el Paso 11 primero se pidió una revisión *sin corregir nada*, y luego se decidió qué corregir.
+7. **Registro continuo.** Este documento se actualizó en cada paso, no al final.
+
+---
+
+## 2. Prompts principales (por paso)
+
+> Resumen de cada prompt. El texto completo de cada uno está en el [Anexo A](#-anexo-a--registro-detallado-por-paso).
+
+| Paso | Prompt principal (resumido) | Resultado |
+|---|---|---|
+| 0 | *"¿Qué API me recomiendas que no sea algo trivial como Pokémon o Rick and Morty?"* | App de turismo en Centroamérica con REST Countries, Open-Meteo y una API de lugares |
+| 1 | Contexto del stack y de las APIs + *"genera un AGENTS.md con las reglas"*, entregado en 5 partes: arquitectura por features, manejo de errores, requisitos de la actividad, convenciones y testing. Más una nota: *"no hacer commit ni push sin mi autorización"* | `AGENTS.md` |
+| 2 | *"Dame los comandos para crear el proyecto Next.js 16 con TypeScript, Tailwind, ESLint, App Router, src/ y alias @/\*; crea la estructura de features y shared; instala zod y server-only; configura .gitignore"* | Proyecto inicializado |
+| 3 | *"Implementa en shared/lib: errors.ts (AppError), http.ts (fetchJson con timeout y zod), env.ts, logger.ts y api-response.ts (handleRouteError); crea .env.example"* | Capa de manejo de errores |
+| 4 | *"Crea Navbar con menú hamburguesa, Footer, Card, Skeleton, Spinner, ErrorState y EmptyState; actualiza el layout con metadata y next/font; paleta temática de viajes; mobile-first"* | UI compartida |
+| 5 | *"Crea error.tsx, global-error.tsx, not-found.tsx y loading.tsx; explica la diferencia entre error.tsx y global-error.tsx"* | Pantallas de error y carga |
+| 6 | *"Implementa el feature countries: schema zod, service con caché, CountryCard, CountryGrid, /api/countries?q= y la página de inicio con hero"* | Primer feature con datos reales |
+| 7 | *"Crea useCountrySearch (useState, useEffect, debounce de 400 ms, AbortController), CountrySearch con filtro por población y la página /explore"* | Buscador |
+| 8 | *"Implementa el feature weather (Open-Meteo, revalidate 1800, códigos WMO en español) y /country/[code] con el clima en Suspense; si el clima falla, la página no debe romperse"* | Ficha del país + clima |
+| 9 | *"Implementa el feature places con Geoapify: schema tolerante, enum de categorías, 401/403 y 429 mapeados, PlaceCard con imagen de respaldo, KindFilter y /country/[code]/places"* | Lugares turísticos |
+| 10 | *"Implementa el feature favorites: useFavorites con localStorage, try/catch, validación zod y sin errores de hidratación; FavoriteButton y /favorites"* | Favoritos |
+| 11.1 | *"Revisa todo el proyecto contra AGENTS.md. Lista SIN corregir… Ordénalos por severidad"* | 17 hallazgos |
+| 11.2 | *"Validemos que las coordenadas pertenezcan a los 7 países; corrijamos los 4 puntos de severidad media; confirma y documenta"* | 5 correcciones verificadas |
+| 11.3 | *"Revisa rendimiento: caché/revalidate por API, next/image, tamaño de los Client Components y metadata para SEO"* | Informe de rendimiento (pendiente de aplicar) |
+| 12 | *"Con base en este historial, ayúdame a redactar VIBE_CODING.md con las secciones…"* | Este documento |
+
+**Prompts de control usados durante todo el proyecto:**
+- *"Aún no generes código, te daré más contexto."* Así el contexto se completaba antes de empezar.
+- *"No hagas nada, luego te daré otro resumen para que pueda tomar captura."* Separaba la captura de pantalla del trabajo.
+- *"He revisado, haz el commit y push."* Era la autorización explícita para cada commit.
+- *"Siempre actualiza el VIBE_CODING."* Mantenía el registro al día.
+
+---
+
+## 3. Iteraciones
+
+Qué generó la IA, qué estaba mal y cómo se corrigió. Solo están las más importantes; el detalle completo está en el [Anexo A](#-anexo-a--registro-detallado-por-paso).
+
+| Paso | Qué generó la IA | Qué estaba mal | Cómo se corrigió |
+|---|---|---|---|
+| 1 | Regla 1: cada feature se importa solo por `index.ts`. Regla 3: los services usan `server-only` | **Las dos reglas chocaban.** Si `index.ts` exportaba los services, cualquier Client Component que importara del feature rompería el build | Dos puntos de entrada por feature: `index.ts` (cliente) y `server.ts` (servidor) |
+| 2 | Proyecto creado con `create-next-app` | Next 16.4 generó **su propio `AGENTS.md`**, y el `.gitignore` (`.env*`) **ignoraba `.env.example`**, que es un entregable | Se combinaron los dos `AGENTS.md`, y se agregó la excepción `!.env.example` |
+| 3 | `fetchJson` con `next: { revalidate }` | Con `cacheComponents`, la caché ya no se configura así | La IA leyó la documentación local: la caché se declara con `'use cache'` + `cacheLife()` |
+| 3 | Prueba con REST Countries | **La API v3.1 estaba dada de baja** (ver Desafíos) | Migración a la v5 |
+| 4 | Navbar con el link activo (`usePathname`) | **Rompía el build** en rutas dinámicas con `cacheComponents` | `<Suspense>` alrededor del link activo; se comprobó quitándolo a propósito |
+| 5 | `error.tsx` con `reset()` (como pedía el prompt) | Desde Next 16.3 lo recomendado es **`retry()`**, que vuelve a pedir los datos | Se usó `retry()` y se actualizó `AGENTS.md` |
+| 5 | `<a href="/">` + `eslint-disable` en `global-error.tsx` | Nuestras propias reglas prohíben `eslint-disable` | Se quitó y se usó `<Link>` |
+| 6 | Imports `../schemas/...` | Violaban la regla 1.7 (alias `@/` obligatorio) | Se cambiaron por `@/features/...` |
+| 6 | `handleRouteError` | **Capturaba señales internas de Next.js** y las registraba como "Error no controlado" | `unstable_rethrow(error)` al inicio |
+| 7 | El ejemplo de hook en `AGENTS.md` (`setIsLoading(true)` dentro del efecto) | **No pasaba el lint** de React 19 (`react-hooks/set-state-in-effect`) | `isLoading` derivado; se corrigió la regla |
+| 7 | El barrel `index.ts` exportaba el hook | El build falló: *"importing a module that depends on useState into a Server Component"* | `'use client'` en los archivos de hooks |
+| 7 | Hook con `fetch` directo | Sin conexión, el usuario habría visto **"Failed to fetch"** (en inglés) | `fetchApi` + `ApiRequestError` con mensajes en español |
+| 8 | Página del país en desarrollo | El servidor de desarrollo tenía un módulo viejo en caché (*"is not a function"*) | Se reinició el servidor; el build de producción ya estaba bien |
+| 9 | Prueba con una **key falsa de Geoapify** | Respondía **500** en lugar del 502 esperado (ver Desafíos) | Patrón `CachedResult`, aplicado a los 3 services |
+| 10 | Corazón de favoritos en la tarjeta | La tarjeta completa es un `<a>`; un `<button>` dentro de un enlace es HTML inválido | Botón fuera del enlace, posicionado encima |
+| 11 | Revisión del proyecto | Las APIs aceptaban coordenadas de cualquier parte del mundo (Tokio → 200) | Validación por rectángulos de los 7 países → 400 |
+| 11 | Ajustes visuales pedidos por el desarrollador: *"card al 90%"*, *"redúcelo al 80%"*, *"hover en verde más oscuro"* | El 80% quedaba angosto en móvil | `page-container` mobile-first: ancho completo / 90% / 80% |
+
+---
+
+## 4. Decisiones técnicas
+
+### ¿Por qué arquitectura basada en features?
+- **Cohesión:** todo lo de "clima" está en `features/weather`: componentes, hook, service, schema, tipos y utilidades. Para cambiar el clima se toca una sola carpeta.
+- **Aislamiento:** un feature solo se usa a través de su `index.ts` (cliente) o `server.ts` (servidor). La dirección de dependencias es única y está documentada (`countries → favorites`; `weather` y `places` no dependen de nadie), así se evitan los ciclos.
+- **`app/` solo compone.** Las páginas importan componentes y services; no tienen `fetch` ni lógica de negocio.
+- **`shared/` es genérico.** Errores, HTTP, logger y UI base, sin conocer el dominio.
+
+### ¿Por qué zod?
+- **Las APIs externas cambian sin avisar.** Gracias a zod se detectó la baja de REST Countries v3.1: sin validación, la app habría intentado mostrar un mensaje de error como si fuera un país.
+- **Una sola fuente de verdad:** los tipos se derivan de los schemas (`z.infer`), y los schemas además **transforman** la respuesta al modelo propio. Por ejemplo, los nombres en español de REST Countries y los arreglos paralelos de Open-Meteo convertidos en lista de días.
+- **Se valida en las 4 entradas de datos:** respuestas externas, query params, variables de entorno y `localStorage`.
+- **Schemas tolerantes:** los datos de OpenStreetMap llegan incompletos, así que se descarta solo el elemento inválido, no la respuesta entera.
+
+### ¿Por qué Route Handlers como proxy?
+- **Las keys nunca llegan al navegador.** Los Client Components solo llaman a `/api/*`; las keys viven en el servidor (`server-only`, `getServerEnv()`). Se verificó en cada paso que no aparecieran en el HTML, las respuestas ni los logs.
+- **Formato de error uniforme:** `{ error: { code, message } }` con el status correcto, y mensajes en español que no revelan detalles internos.
+- **Los Server Components no llaman a su propio `/api/*`:** usan el mismo service directamente, sin un salto HTTP innecesario.
+- **El proxy no es abierto:** solo acepta coordenadas dentro de los 7 países, así nadie puede agotar la cuota de las keys.
+
+### Estrategia de caché
+| Fuente | Caché | Motivo |
+|---|---|---|
+| REST Countries | 1 día (`cacheLife('days')`) | Cuota de **1000 peticiones/mes**. Una sola petición trae los 7 países, y buscar o abrir un país reutiliza esa lista |
+| Open-Meteo | 30 min (`cacheLife({ revalidate: 1800 })`) | El clima cambia, pero no a cada minuto |
+| Geoapify | 1 día por coordenada y categoría | Los lugares casi no cambian; cuota de 3000/día |
+| Fallas | Unos segundos (`cacheLife('seconds')`) | Un error no debe quedar guardado un día entero |
+
+- Con `cacheComponents`, la caché se declara con **`'use cache'` + `cacheLife()`** en los services, no en `fetch`.
+- Las páginas de los 7 países se **prerenderizan** en el build (`generateStaticParams`).
+- **Pendiente para producción (Paso 11.3):** en Vercel, la caché en memoria no persiste entre peticiones; la propuesta es `'use cache: remote'` para los países.
+
+### Otras decisiones
+- **Degradación elegante:** si falla el clima o los lugares, la ficha del país sigue funcionando; el error queda solo en esa sección.
+- **`isLoading` derivado** en los hooks: nunca queda "pegado" y cumple el lint de React 19.
+- **Favoritos:** se guardan solo los códigos; si `localStorage` falla, se usa una copia en memoria.
+- **Accesibilidad:** HTML semántico, `aria-pressed`, `aria-live`, link "saltar al contenido", foco visible en tarjetas y contraste AA.
+
+---
+
+## 5. Desafíos y soluciones con IA
+
+### 5.1 APIs dadas de baja, que ya no funcionaban o que respondían con error 500
+
+Fue el desafío más frecuente del proyecto: **lo que dicen los tutoriales y la documentación antigua ya no coincidía con lo que las APIs responden hoy.**
+
+| API | Qué pasó | Cómo se detectó | Solución con la IA |
+|---|---|---|---|
+| **OpenTripMap** (API de lugares elegida al inicio) | El registro para obtener la key **respondía error 500** y nunca llegaba el correo de confirmación. Sin key no se podía usar | Al intentar registrarse en el sitio | La IA propuso **Geoapify Places** (gratuita, 3000 peticiones/día, registro con Google o GitHub). Se actualizó toda la guía del proyecto |
+| **REST Countries v3.1** (y v1, v2, v4) | La versión que usan casi todos los tutoriales (`restcountries.com/v3.1/...`) **fue dada de baja**. Ya no devuelve países: redirige (301) a un aviso de deprecación. Nuestra API terminaba respondiendo **502 "respuesta inesperada"** en lugar de datos | En el Paso 3, una prueba real de `fetchJson`: la validación con zod rechazó la respuesta | La IA investigó la documentación oficial y planteó dos opciones; se eligió **migrar a la v5**, que **ahora exige API key** (1000 peticiones/mes). Se probó la forma real de la respuesta con la key pública de demo, sin gastar cuota |
+| **REST Countries v5** (la nueva) | No es un reemplazo directo: **cambió la base URL** (`api.restcountries.com/countries/v5`), los **nombres de los campos** (`name` → `names`, `cca3` → `codes.alpha_3`...), el parámetro de filtro (`?fields=` → `?response_fields=`), el formato (`{ data: { objects } }`) y, al buscar un código inexistente, devuelve una **lista vacía en lugar de 404** | Al adaptar el prompt del Paso 6, que estaba escrito para la v3.1 | Schema nuevo que transforma la v5 al modelo propio (con nombres en español), y el service lanza `NOT_FOUND` por su cuenta |
+| **Nuestra propia API respondiendo 500** con una key inválida | Con una key falsa de Geoapify, `/api/places` respondía **500 "error inesperado"** en lugar de 502. Un `AppError` lanzado dentro de `'use cache'` **pierde su tipo en producción**. Afectaba sin que se notara a los 3 services | En el Paso 9, probando un build de producción con una key falsa | Patrón **`CachedResult`** (de la documentación de Next): la falla se devuelve y se vuelve a lanzar fuera de la caché |
+
+### 5.2 APIs del propio framework que cambiaron (Next.js 16)
+
+| Lo que pedían los prompts o "sabía" la IA | Lo que exige Next 16.4 | Cómo se descubrió |
+|---|---|---|
+| `fetch(url, { next: { revalidate } })` | `'use cache'` + `cacheLife()` con `cacheComponents` | Documentación local, antes de programar el Paso 3 |
+| `reset()` en `error.tsx` | **`retry()`** (desde 16.3) | Documentación local, Paso 5 |
+| `priority` en `next/image` | **`preload`** (`priority` está deprecado) | Documentación local, Paso 6 |
+| `dynamicParams = false` para un 404 real | **No existe** con `cacheComponents` | Documentación local, Paso 8 |
+| `usePathname()` libre en el layout | Requiere **`<Suspense>`** en rutas dinámicas o el build falla | Documentación + prueba provocando el error, Paso 4 |
+| `await params` en la página | También requiere un límite de `<Suspense>` (`loading.tsx`) | Prueba de build, Paso 4 |
+
+> **Clave:** el `AGENTS.md` que genera Next 16 dice *"This is NOT the Next.js you know"*. La IA leyó la documentación incluida en `node_modules/next/dist/docs/` antes de cada paso, y eso evitó muchos errores.
+
+### 5.3 Otros desafíos
+
+| Desafío | Solución con apoyo de la IA |
+|---|---|
+| Errores de hidratación con `localStorage` | Estado inicial vacío (igual al del servidor), lectura en `useEffect` y bandera `isReady` |
+| Dependencia circular entre `countries` y `favorites` | Tipo estructural propio en `favorites` y dirección única de dependencias |
+| Geoapify no trae fotos (0 de ~90 lugares) | Imagen de respaldo temática por categoría |
+| La key de Geoapify solo se acepta en la URL | `fetchJson` y el logger nunca registran la URL completa; se verificó en las respuestas, el HTML y los logs |
+| Probar errores sin romper las APIs reales | Rutas temporales de prueba y fallas simuladas (URL inválida o key falsa), que se eliminaban antes de cada commit |
+
+---
+
+## 6. Lecciones aprendidas
+
+1. **Las reglas escritas guían mejor a la IA que las instrucciones sueltas.** `AGENTS.md` se convirtió en el contrato: la IA lo consultaba, lo citaba y lo actualizaba cuando aprendía algo nuevo (`retry()`, `'use cache'`, `CachedResult`).
+2. **La IA también se equivoca, y nuestras reglas también.** Un ejemplo de `AGENTS.md` no pasaba el lint, y dos reglas chocaban entre sí. Revisar el resultado, y no solo aceptarlo, fue lo que más valor aportó.
+3. **No confiar en tutoriales ni en la memoria del modelo.** REST Countries v3.1, OpenTripMap y varias APIs de Next.js habían cambiado. Probar contra la API real y leer la documentación de la versión instalada evitó horas de depuración.
+4. **Validar datos externos no es opcional.** zod convirtió un cambio silencioso de la API en un error claro y controlado.
+5. **Probar los caminos de error, no solo el camino feliz.** Los bugs más importantes aparecieron con fallas simuladas: la key falsa, el clima caído, la falta de conexión y coordenadas de otros países.
+6. **Separar "revisar" de "corregir".** Pedir primero la lista de problemas, sin cambios, permitió decidir con criterio qué corregir y en qué orden.
+7. **Pasos pequeños + commits autorizados = historial claro.** Cada commit cuenta una parte de la historia, y este documento la explica.
+8. **Pensar en producción desde el principio.** La cuota de las APIs y el comportamiento de la caché en serverless cambian la estrategia; no basta con que funcione en local.
 
 ---
 
@@ -56,7 +202,9 @@ Para cada paso se registran:
 
 ---
 
-## 🧭 Registro por paso
+## 📎 Anexo A — Registro detallado por paso
+
+Texto completo de cada prompt, iteraciones, decisiones, desafíos, validación y commit de cada paso.
 
 ### Paso 0 — Concepción del proyecto y elección de APIs
 
@@ -974,6 +1122,47 @@ c3b89ac fix: corregir hallazgos de severidad alta y media de la revisión
 
 ---
 
+### Paso 11.3 — Revisión de rendimiento (pendiente de aplicar)
+
+**Prompt principal:**
+> "Revisa rendimiento: estrategia de caché/revalidate por API, next/image (sizes, priority en hero, remotePatterns en next.config), tamaño de los Client Components y metadata para SEO."
+
+**Cómo revisó la IA:** leyó la documentación local de `'use cache'`, `'use cache: remote'` y `next/image`; midió los chunks de JavaScript del build (con gzip) y buscó qué librerías incluían; inspeccionó el `<head>` del HTML prerenderizado de las 5 páginas. **No modificó código.**
+
+**Hallazgos:**
+
+| # | Prioridad | Hallazgo | Propuesta |
+|---|---|---|---|
+| 1 | 🔴 | Según la documentación, **en serverless (Vercel) la caché en memoria de `'use cache'` no persiste entre peticiones**. Cada visita a `/explore` y cada regeneración de las fichas (cada 30 min, por el clima) podrían consultar REST Countries: en el peor caso, ~336 peticiones/día frente a una cuota de 1000/mes | `'use cache: remote'` para los países, sacar el clima del shell estático de la ficha, y que `/explore` reciba los países desde el servidor |
+| 2 | 🟠 | **zod viaja al navegador (105 KB, 30 KB gzip) en 5 páginas** por la validación de favoritos (`FavoriteButton` → `useFavorites` → `favoritesStorage`) | Usar `zod/mini` en ese schema |
+| 3 | 🟡 | `next/image`: `sizes` ✅, `remotePatterns` ✅ y `preload` en la bandera del detalle ✅ (`priority` está deprecado). `minimumCacheTTL` usa el valor por defecto de 4 h | Subirlo a 30 días (las banderas no cambian) |
+| 4 | 🟡 | SEO: hay títulos, descripciones y `twitter:card` ✅. Faltan `metadataBase`, canonical, `og:url`, `og:image` por defecto, `sitemap.ts` y `robots.ts`, y `noindex` en `/favorites` | Agregarlos usando `NEXT_PUBLIC_SITE_URL` (no es secreta) |
+| 5 | 🟢 | Los Client Components ya son pequeños y están en las hojas; el único peso notable es zod | — |
+
+**Estado:** el desarrollador decidió documentar el proceso (Paso 12) antes de aplicar estas optimizaciones.
+
+---
+
+### Paso 12 — Documentación del proceso (`VIBE_CODING.md`)
+
+**Prompt principal:**
+> "Con base en este historial, ayúdame a redactar VIBE_CODING.md con las secciones: 1. Herramienta de IA usada. 2. Prompts principales (por paso). 3. Iteraciones (qué generó la IA, qué estaba mal, cómo se corrigió). 4. Decisiones técnicas (por qué features, por qué zod, por qué Route Handlers como proxy, caché). 5. Desafíos y soluciones con IA. 6. Lecciones aprendidas."
+>
+> Pedido adicional del desarrollador: *"Ayúdame a documentar que parte de los desafíos que tuvimos también es la integración con las APIs que están deprecadas o que ya no están en uso y me arrojaban un 500."*
+
+**Qué hizo la IA:**
+- Reorganizó el documento en las 6 secciones pedidas, como resumen al inicio.
+- Conservó el registro detallado de cada paso como **Anexo A**, porque es la evidencia del proceso.
+- Agregó la sección **5.1 "APIs dadas de baja, que ya no funcionaban o que respondían con error 500"**: OpenTripMap (error 500 en el registro), REST Countries v3.1 dada de baja, los cambios de la v5 y el 500 propio dentro de `'use cache'`.
+- Agregó la sección **5.2** con las APIs de Next.js 16 que cambiaron respecto de lo que pedían los prompts.
+
+**Commit:**
+```
+(pendiente de autorización)
+```
+
+---
+
 <!--
 PLANTILLA PARA LOS SIGUIENTES PASOS (copiar y completar)
 
@@ -1012,7 +1201,3 @@ PLANTILLA PARA LOS SIGUIENTES PASOS (copiar y completar)
 <hash> <mensaje>
 ```
 -->
-
-## 📚 Lecciones aprendidas
-
-> Esta sección se completa al final del proyecto.

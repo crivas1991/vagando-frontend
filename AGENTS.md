@@ -596,6 +596,22 @@ export default function PlacesPage({ params }: { params: { code: string } }) {
 
 > En Client Components se usan los hooks `useParams()` y `useSearchParams()` de `next/navigation`.
 
+#### Con `cacheComponents`: datos dinámicos siempre dentro de `<Suspense>`
+
+Con `cacheComponents: true`, Next.js prerenderiza un "esqueleto" estático de cada ruta. **Todo lo que solo se conoce al momento de la petición debe estar dentro de un límite de `<Suspense>`, o el build falla.** Esto incluye:
+
+- `await params` / `await searchParams` en rutas dinámicas (`/country/[code]`),
+- `fetch` sin caché, `cookies()`, `headers()` y `connection()`,
+- los hooks de cliente `usePathname()`, `useSearchParams()` y `useParams()` en rutas con params dinámicos,
+- leer la fecha u hora actual (`new Date()`) en un Server Component.
+
+Cómo cumplirlo:
+- Cada ruta dinámica tiene su **`loading.tsx`**, que Next.js convierte en un límite de `<Suspense>` para la página. Esto ya es obligatorio por la regla 3.7.
+- Los componentes de cliente que usan `usePathname()` dentro del layout se envuelven en `<Suspense>` con un fallback equivalente (ver `shared/components/ui/Navbar.tsx`).
+- Los datos que pueden cachearse se leen en funciones con `'use cache'` (ver 2.3).
+
+Errores típicos del build si no se cumple: `blocking-prerender-dynamic` y `blocking-prerender-client-hook`.
+
 ### 3.10 Checklist de cumplimiento
 
 - [ ] `tsconfig.json` con `strict: true` y ningún `any` en el código.

@@ -42,6 +42,7 @@ Para cada paso se registran:
 | 1 | Paso 1 | `21d812a` | `docs: agregar AGENTS.md con reglas del proyecto` | Commit inicial: reglas de arquitectura, manejo de errores, requisitos, convenciones y testing |
 | 2 | Paso 2 | `cee082d` | `chore: inicializar proyecto Next.js 16 con estructura por features` | Proyecto Next.js 16.4, estructura de features y shared, zod, server-only, `.gitignore` y `AGENTS.md` combinado |
 | 3 | Pasos 0–2 | `ba71e58` | `docs: agregar VIBE_CODING.md con registro del proceso` | Este documento con el registro de los pasos 0, 1 y 2 |
+| 4 | Paso 3 | `f37ccc6` | `feat(shared): agregar manejo de errores, cliente HTTP y validación de entorno` | `AppError`, `fetchJson`, `getServerEnv`, logger, `handleRouteError`, `.env.example` y migración documentada a REST Countries v5 |
 
 > Esta tabla se actualiza con cada commit nuevo. El hash de un commit que modifica este archivo se completa en el commit siguiente, porque un commit no puede contener su propio hash.
 
@@ -338,6 +339,94 @@ cee082d chore: inicializar proyecto Next.js 16 con estructura por features
 - [x] `npm run build`: build exitoso
 - [x] Los casos de error probados en tiempo de ejecución se comportan como se esperaba
 - [x] Se eliminó la ruta temporal de prueba
+
+**Commit:**
+```
+f37ccc6 feat(shared): agregar manejo de errores, cliente HTTP y validación de entorno
+```
+
+---
+
+### Paso 4 — UI compartida y layout
+
+**Objetivo:** crear los componentes de interfaz reutilizables, la paleta de colores y el layout global de la app.
+
+**Prompt principal:**
+> "Siguiendo AGENTS.md, crea en src/shared/components/ui componentes reutilizables y responsive: Navbar (con menú hamburguesa en mobile, links a /, /explore, /favorites), Footer, Card, Skeleton, Spinner, ErrorState (mensaje + botón reintentar opcional) y EmptyState. Actualiza app/layout.tsx con Navbar, Footer, metadata y una fuente de next/font. Paleta de colores temática de viajes. Mobile-first."
+
+**Archivos creados / modificados:**
+
+| Archivo | Tipo | Descripción |
+|---|---|---|
+| `shared/components/ui/Navbar.tsx` | Server | Header sticky con logo, navegación de escritorio y menú móvil |
+| `shared/components/ui/ActiveNavLinks.tsx` | Client | Marca el link activo con `usePathname()` |
+| `shared/components/ui/NavLinkList.tsx` | Presentacional | Lista de links (`aria-current="page"` en el activo) |
+| `shared/components/ui/MobileMenu.tsx` | Client | Menú hamburguesa con `useState`/`useEffect`: se cierra con Escape o al tocar un link |
+| `shared/components/ui/Footer.tsx` | Server | Descripción y créditos de las fuentes de datos |
+| `shared/components/ui/Logo.tsx` | Server | Logo SVG (pin de mapa con ola) |
+| `shared/components/ui/Card.tsx` | Server | Tarjeta con etiqueta semántica configurable (`article`, `li`...) |
+| `shared/components/ui/Skeleton.tsx` | Server | Bloque de carga, que respeta `prefers-reduced-motion` |
+| `shared/components/ui/Spinner.tsx` | Server | Indicador de carga con `role="status"` |
+| `shared/components/ui/ErrorState.tsx` | Server/Client | Error con botón "Reintentar" opcional y variantes `page`/`section` |
+| `shared/components/ui/EmptyState.tsx` | Server | Estado vacío con acción opcional (link) |
+| `shared/components/ui/Button.tsx` | Server | Botón con variantes, y `buttonClassName()` para links con estilo de botón *(extra)* |
+| `shared/lib/cn.ts` | — | Une clases condicionales *(extra)* |
+| `shared/lib/site-config.ts` | — | Nombre, navegación y créditos del sitio *(extra)* |
+| `app/globals.css` | — | Paleta de viajes con tokens semánticos y modo oscuro |
+| `app/layout.tsx` | Server | Fuentes, metadata, `viewport`, Navbar, Footer y link "Saltar al contenido" |
+| `app/page.tsx` | Server | **Temporal:** vista previa de los componentes (se reemplaza en el Paso 6) |
+| `app/icon.svg` | — | Favicon de Vagando (reemplaza el de Next.js) |
+
+**Paleta "Centroamérica":**
+
+| Token | Claro | Inspiración |
+|---|---|---|
+| `primary` (laguna) | `#0f766e` | Turquesa del Caribe y de los lagos volcánicos |
+| `accent` (atardecer) | `#e8613c` | Puestas de sol en el Pacífico |
+| `background` (arena) | `#fbf8f3` | Playas |
+| `success` (selva) | `#15803d` | Bosque tropical |
+| `danger` (volcán) | `#b91c1c` | Volcanes activos |
+
+**Fuentes (`next/font/google`):** *Plus Jakarta Sans* para el texto (legible en móvil) y *Fraunces* para los títulos (estilo de revista de viajes). Ambas son variables, así que no hace falta declarar pesos.
+
+**Iteraciones:**
+
+| # | Qué se hizo | Resultado | Ajuste / revisión |
+|---|---|---|---|
+| 1 | Antes de programar, la IA leyó la documentación local de `usePathname` y `next/font` | Descubrió que con `cacheComponents`, **`usePathname` se suspende en rutas dinámicas** y el build falla si no está dentro de `<Suspense>` | El Navbar se dividió: el shell es de servidor y solo `ActiveNavLinks` es de cliente, envuelto en `<Suspense>` con un fallback que muestra los mismos links sin marcar el activo |
+| 2 | Se generaron los componentes, el layout y la paleta | `tsc`, `lint` y `build` sin errores | — |
+| 3 | **Prueba del Suspense:** se creó una ruta dinámica temporal (`/country/[code]`) y se quitó el `<Suspense>` del Navbar | El build falló con `usePathname() in a Client Component outside of <Suspense>`, lo que confirma que la protección es necesaria | Se restauró el Navbar y se borró la ruta temporal |
+| 4 | La misma prueba reveló que **`await params` en una página también necesita `<Suspense>`** | El build falló con `blocking-prerender-dynamic` | Se documentó en `AGENTS.md` (3.9): cada ruta dinámica necesita su `loading.tsx` |
+| 5 | Se sirvió el build de producción y se revisó el HTML generado | Presentes: `lang="es"`, link "Saltar al contenido", ambas navegaciones, `aria-current`, créditos, título y favicon | — |
+
+**Decisiones técnicas:**
+
+| Decisión | Motivo |
+|---|---|
+| **Tokens semánticos** (`bg-surface`, `text-muted`, `bg-primary`) en lugar de colores fijos | El modo oscuro funciona automáticamente con `prefers-color-scheme`, sin repetir clases `dark:` en cada componente |
+| Navbar de servidor con "islas" de cliente (`ActiveNavLinks`, `MobileMenu`) | Regla 3.4: el Client Component es pequeño y va en las hojas del árbol |
+| Los links del menú móvil se renderizan en el servidor y llegan a `MobileMenu` como `children` | El componente de cliente solo maneja abrir y cerrar, sin duplicar la lista de links |
+| `ErrorState` **no** lleva `'use client'` | Si se usa sin `onRetry` en un Server Component (degradación elegante), no agrega JavaScript al navegador |
+| El Footer **no muestra el año** | Con `cacheComponents`, `new Date()` en un Server Component vuelve dinámica la ruta, y no vale la pena por un dato decorativo |
+| Créditos de las APIs en el Footer | Open-Meteo (CC BY 4.0) y los datos de OpenStreetMap que usa Geoapify (ODbL) **exigen atribución** |
+| `site-config.ts` como fuente única de nombre, navegación y créditos | Evita repetir textos entre Navbar, Footer y metadata |
+| Accesibilidad: "Saltar al contenido", `aria-expanded`/`aria-controls`, botones de 44px, foco visible, `motion-safe`/`motion-reduce` | Reglas 3.6 y 4.5–4.6 de `AGENTS.md` |
+| Se eliminaron los SVG y el favicon de la plantilla de Next.js | No se usaban y mostraban la marca de Next/Vercel |
+
+**Desafíos y soluciones:**
+
+| Desafío | Solución con apoyo de la IA |
+|---|---|
+| `usePathname()` rompe el build en rutas dinámicas con `cacheComponents` | Se envolvió en `<Suspense>` con un fallback equivalente, y se comprobó provocando el error a propósito |
+| Las páginas con `await params` también necesitan `<Suspense>` | Se anticipó el problema del Paso 8 y se documentó en `AGENTS.md` 3.9, antes de que apareciera |
+| `ErrorState` con `onRetry` no puede recibir funciones desde un Server Component | Se documentó en el propio componente: `onRetry` solo se pasa desde Client Components (por ejemplo, `reset` en `error.tsx`) |
+
+**Validación:**
+- [x] `npx tsc --noEmit`: sin errores
+- [x] `npm run lint`: sin errores
+- [x] `npm run build`: build exitoso (también con una ruta dinámica de prueba)
+- [x] HTML de producción revisado (`lang`, accesibilidad, metadata y créditos)
+- [ ] Revisión visual en 320px, 768px y 1280px (la hace el desarrollador con `npm run dev`)
 
 **Commit:**
 ```

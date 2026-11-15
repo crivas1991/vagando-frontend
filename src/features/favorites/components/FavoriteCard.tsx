@@ -13,7 +13,7 @@ const populationFormatter = new Intl.NumberFormat('es', { notation: 'compact', m
 export function FavoriteCard({ country }: { country: FavoriteCountry }) {
   return (
     <Card as="article" padding="none" interactive className="relative h-full">
-      <Link href={`/country/${country.code}`} className="flex h-full flex-col">
+      <Link href={`/country/${country.code}`} className="flex h-full flex-col focus-visible:outline-none">
         <div className="relative aspect-[3/2] w-full overflow-hidden border-b border-border bg-surface-muted">
           <Image
             src={country.flag.png}

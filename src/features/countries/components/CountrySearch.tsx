@@ -61,7 +61,7 @@ export function CountrySearch() {
             maxLength={COUNTRY_SEARCH_MAX_LENGTH}
             placeholder="Nombre, capital o código (ej. Panamá, Managua, CRI)"
             autoComplete="off"
-            className="min-h-11 w-full rounded-full border border-border bg-background px-4 text-base placeholder:text-muted/70 focus:border-primary"
+            className="min-h-11 w-full rounded-full border border-border bg-background px-4 text-base placeholder:text-muted focus:border-primary"
           />
         </div>
 

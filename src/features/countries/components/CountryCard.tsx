@@ -18,7 +18,7 @@ type CountryCardProps = {
 export function CountryCard({ country, headingLevel: Heading = 'h3' }: CountryCardProps) {
   return (
     <Card as="article" padding="none" interactive className="relative h-full">
-      <Link href={`/country/${country.code}`} className="flex h-full flex-col">
+      <Link href={`/country/${country.code}`} className="flex h-full flex-col focus-visible:outline-none">
         <div className="relative aspect-[3/2] w-full overflow-hidden border-b border-border bg-surface-muted">
           <Image
             src={country.flag.png}

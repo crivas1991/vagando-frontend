@@ -1,9 +1,19 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { OUT_OF_REGION_MESSAGE, isInCentralAmerica } from '@/features/countries';
 import { placesQuerySchema, type PlacesResponse } from '@/features/places';
 import { getPlacesNear } from '@/features/places/server';
 import { handleRouteError } from '@/shared/lib/api-response';
 import { AppError } from '@/shared/lib/errors';
+
+/**
+ * Solo se aceptan coordenadas dentro de los 7 países de Centroamérica:
+ * evita que esta ruta se use como proxy para consultar Geoapify desde cualquier parte del mundo
+ * y agotar la cuota de la key (revisión del Paso 11, severidad alta).
+ */
+const centralAmericaPlacesQuerySchema = placesQuerySchema.refine(({ lat, lon }) => isInCentralAmerica(lat, lon), {
+  message: OUT_OF_REGION_MESSAGE,
+});
 
 /**
  * GET /api/places?lat=13.69&lon=-89.19&kind=sights
@@ -13,7 +23,7 @@ import { AppError } from '@/shared/lib/errors';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
-    const query = placesQuerySchema.safeParse({
+    const query = centralAmericaPlacesQuerySchema.safeParse({
       lat: searchParams.get('lat') ?? undefined,
       lon: searchParams.get('lon') ?? undefined,
       kind: searchParams.get('kind') ?? undefined,

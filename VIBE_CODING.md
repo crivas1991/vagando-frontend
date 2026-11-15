@@ -49,6 +49,7 @@ Para cada paso se registran:
 | 8 | Paso 7 | `c017873` | `feat(countries): agregar página /explore con búsqueda y filtro por población` | `useCountrySearch` (debounce, AbortController, `isLoading` derivado), `CountrySearch`, `/explore`, `fetchApi` |
 | 9 | Paso 8 | `5d8b438` | `feat(weather): agregar clima, /api/weather y detalle de país con degradación elegante` | Feature `weather`, `/api/weather`, `/country/[code]` con clima en `<Suspense>` y degradación elegante |
 | 10 | Paso 9 | `6798508` | `feat(places): agregar lugares turísticos con Geoapify y /country/[code]/places` | Feature `places`, `/api/places`, página de lugares y fix de errores dentro de `'use cache'` (`CachedResult`) |
+| 11 | Paso 10 | `b9e8a6b` | `feat(favorites): agregar favoritos con localStorage y página /favorites` | `useFavorites` con `localStorage`, `FavoriteButton`, `FavoritesList` y `/favorites` |
 
 > Esta tabla se actualiza con cada commit nuevo. Como un commit no puede contener su propio hash, después de cada commit de funcionalidad se hace un commit `docs(vibe): ...` que registra el hash. Esos commits de registro no se listan en esta tabla.
 
@@ -878,7 +879,90 @@ c017873 feat(countries): agregar página /explore con búsqueda y filtro por pob
 - [x] `npx tsc --noEmit` y `npm run lint`: sin errores
 - [x] `favorites` no importa de `countries` (verificado con `grep`)
 - [x] HTML del servidor: skeleton en `/favorites`, corazones accesibles y fuera de los enlaces
-- [ ] Prueba en el navegador: guardar y quitar, persistencia al recargar, sincronización entre tarjeta, detalle y lista, sin aviso de hidratación en la consola *(la realiza el desarrollador)*
+- [x] Prueba en el navegador: guardar y quitar, persistencia al recargar, sincronización entre tarjeta, detalle y lista, sin aviso de hidratación en la consola *(revisada por el desarrollador)*
+
+**Commit:**
+```
+b9e8a6b feat(favorites): agregar favoritos con localStorage y página /favorites
+```
+
+---
+
+### Paso 11 — Revisión del proyecto contra `AGENTS.md` y correcciones
+
+**Objetivo:** validar el código generado por la IA antes de darlo por bueno, separando la **revisión** (sin cambios) de la **corrección**.
+
+#### 11.1 Revisión (sin corregir)
+
+**Prompt principal:**
+> "Revisa todo el proyecto contra AGENTS.md. Lista SIN corregir: 1. Violaciones de la arquitectura por features (imports cruzados, lógica en app/). 2. Errores no manejados, catch vacíos, posibles fugas de la API key. 3. Uso de any o tipos débiles. 4. Client Components que podrían ser Server Components. 5. Problemas de responsive o accesibilidad. Ordénalos por severidad."
+
+**Cómo revisó la IA:** con búsquedas automáticas en todo `src/` (imports entre features, imports `../`, `fetch` directo, `process.env`, `NEXT_PUBLIC_`, `server-only`, `any`/`@ts-ignore`/casts, `catch`, `console`, `'use client'`, `<img>`, encabezados) y pruebas contra el servidor (por ejemplo, `/api/places` con coordenadas de Tokio respondió 200). **No modificó ningún archivo.**
+
+**Hallazgos (17):**
+
+| # | Severidad | Cat. | Hallazgo | Estado |
+|---|---|---|---|---|
+| 1 | 🔴 Alta | 2 | `/api/places` y `/api/weather` aceptaban coordenadas de **cualquier parte del mundo** (Tokio → 200): cualquiera podía agotar la cuota de Geoapify | ✅ Corregido |
+| 2 | 🟠 Media | 5 | Foco invisible en las tarjetas: `overflow-hidden` de `Card` recortaba el contorno del enlace | ✅ Corregido |
+| 3 | 🟠 Media | 5 | Placeholder del buscador con contraste ~3:1 (`text-muted/70`), por debajo de 4.5:1 | ✅ Corregido |
+| 4 | 🟠 Media | 5 | Contenedor al 80% también en móvil: ~256px útiles en una pantalla de 320px | ✅ Corregido |
+| 5 | 🟠 Media | 2 | `/explore` y `/favorites` sin `error.tsx` propio | ✅ Corregido |
+| 6 | 🟡 Baja | 2 | `/country/XXX` responde HTTP 200 con `noindex` (limitación documentada de `cacheComponents`) | Pendiente |
+| 7 | 🟡 Baja | 2 | `catch` que devuelve `null` sin registrar (`place.schema.ts`) | Pendiente |
+| 8 | 🟡 Baja | 2 | Los errores de `localStorage` se registran con `logger`, que no escribe en el navegador | Pendiente |
+| 9 | 🟡 Baja | 2 | `reportClientError` usa `console` y `process.env` sin figurar como excepción documentada | Pendiente |
+| 10 | 🟡 Baja | 3 | Validaciones de respuestas propias en el cliente que solo revisan que haya un arreglo | Pendiente |
+| 11 | 🟡 Baja | 1 | Lógica menor en `app/` (URL canónica y descripción de metadata) | Pendiente |
+| 12 | 🟡 Baja | 4 | `/explore` y lugares cargan los datos iniciales en el cliente aunque el servidor los tiene | Pendiente |
+| 13 | 🟡 Baja | 5 | Salto de encabezados `h1` → `h3` en la página de lugares | Pendiente |
+| 14 | 🟡 Baja | 5 | `Spinner` (`role="status"`) dentro de una región `aria-live`: doble anuncio | Pendiente |
+| 15 | 🟡 Baja | 5 | Links externos del Footer sin aviso de "pestaña nueva" | Pendiente |
+| 16 | 🟡 Baja | 5 | El menú móvil no mueve el foco al abrirse | Pendiente |
+| 17 | 🟡 Baja | 5 | Capitales y monedas en inglés sin `lang="en"` | Pendiente |
+
+**Sin hallazgos:** no hay imports internos entre features (solo `countries → favorites` por su barrel), `shared` no importa de `features`, no hay `../`, ningún `index.ts` exporta services, no hay `fetch` directo, no hay `NEXT_PUBLIC_`, todos los services usan `server-only`, hay cero `any`/`@ts-ignore` y ninguna etiqueta `<img>`.
+
+#### 11.2 Corrección
+
+**Prompt principal:**
+> "De las observaciones con severidad alta validemos que las coordenadas pertenezcan a los 7 países de Centroamérica; luego con los 4 puntos de severidad media corrijamos de acuerdo a tu análisis, coincido con él. Confirma que todas estén solventadas y recuerda documentar esto."
+
+**Decisión previa:** el commit del Paso 10 se hizo **antes** de corregir, para que el historial separe la funcionalidad de las correcciones de la revisión.
+
+**Correcciones aplicadas:**
+
+| # | Corrección | Archivos |
+|---|---|---|
+| 1 | Rectángulo geográfico por país, con islas incluidas (Cayos de Belice, Islas del Cisne, Corn Islands, Isla del Coco). Los Route Handlers validan con `.refine(isInCentralAmerica)` **antes** de llamar al service: fuera de la región → **400** sin consumir cuota | `features/countries/utils/centralAmericaBounds.ts` (nuevo), `app/api/places/route.ts`, `app/api/weather/route.ts` |
+| 2 | Las tarjetas `interactive` dibujan un anillo en la tarjeta completa (`has-[a:focus-visible]:ring-2`) y el enlace interno usa `focus-visible:outline-none` | `shared/components/ui/Card.tsx`, `CountryCard.tsx`, `FavoriteCard.tsx` |
+| 3 | El placeholder pasa de `text-muted/70` (~3:1) a `text-muted` (~5.5:1) | `CountrySearch.tsx` |
+| 4 | `page-container` mobile-first: `100% - 2rem` en móvil, 90% desde 640px y **80% desde 1024px** (el ancho elegido por el desarrollador) | `app/globals.css` |
+| 5 | Nuevo `RouteErrorView` compartido y `error.tsx` en `/explore` y `/favorites`; los `error.tsx` de país y lugares ahora también lo usan (se eliminó código duplicado) | `shared/components/ui/RouteErrorView.tsx` (nuevo), 4 archivos `error.tsx` |
+
+**Verificación de cada corrección:**
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 1 | `/api/weather` con las 7 capitales y los 7 centros geográficos (datos de REST Countries) | **14/14 → 200** ✅ |
+| 1 | `/api/places` y `/api/weather` con Tokio, París, Ciudad de México, Bogotá, La Habana y Caracas | **12/12 → 400** "Las coordenadas deben estar dentro de uno de los países de Centroamérica." ✅ |
+| 2 | CSS final y HTML de `/` | Existen las reglas `ring-2:has(:is(a:focus-visible))` y `focus-visible:outline-none`; las 7 tarjetas las tienen ✅ |
+| 3 | HTML de `/explore` | Ya no queda `text-muted/70` ✅ |
+| 4 | CSS final | `.page-container{width:calc(100% - 2rem)}`, `@media (min-width:40rem){width:90%}` y `@media (min-width:64rem){width:80%}` ✅ |
+| 5 | Archivos y build | `explore/error.tsx` y `favorites/error.tsx` existen y compilan ✅ |
+| — | `npm run build`, `tsc` y `lint`; las 5 rutas responden 200 | ✅ |
+
+**Documentación actualizada en `AGENTS.md`:** 2.7 (`RouteErrorView` y cobertura de `error.tsx`), 3.3 (los Route Handlers no son proxies abiertos), 3.6 (`page-container` responsive, foco en tarjetas enlazadas y contraste mínimo).
+
+**Desafíos y soluciones:**
+
+| Desafío | Solución con apoyo de la IA |
+|---|---|
+| Validar "pertenece a un país" sin un servicio de geocodificación | Rectángulos por país con margen; es una aproximación documentada (puede incluir una franja de un país vecino o de mar), suficiente para impedir el abuso global |
+| ¿Dónde validar sin acoplar features? | La validación vive en `countries` (dueño del dato geográfico) y la aplican los Route Handlers en `app/`, que componen features; `weather` y `places` siguen sin importar `countries` |
+| El anillo de foco no podía ir en el enlace (recortado) | Variante `has-[a:focus-visible]` de Tailwind v4: el anillo lo dibuja la tarjeta, que no se recorta a sí misma |
+
+**Pendiente:** los 12 hallazgos de severidad baja (6 a 17) quedan registrados para una iteración posterior.
 
 **Commit:**
 ```

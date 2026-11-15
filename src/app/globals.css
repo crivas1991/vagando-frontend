@@ -92,12 +92,23 @@
 }
 
 /*
- * Contenedor de página: 80% del ancho de la ventana, centrado.
+ * Contenedor de página, centrado y mobile-first (AGENTS.md 3.6):
+ * - móvil: todo el ancho menos 16px por lado (con 80% quedaban ~256px útiles en 320px),
+ * - tablet (≥ 640px): 90%,
+ * - escritorio (≥ 1024px): 80%, el ancho elegido por el desarrollador.
  * Lo usan Navbar, Footer y <main> para que todo quede alineado.
  */
 @utility page-container {
-  width: 80%;
+  width: calc(100% - 2rem);
   margin-inline: auto;
+
+  @media (width >= 40rem) {
+    width: 90%;
+  }
+
+  @media (width >= 64rem) {
+    width: 80%;
+  }
 }
 
 /* Foco visible y consistente en toda la app (accesibilidad) */

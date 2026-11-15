@@ -414,6 +414,7 @@ export default function CountryError({ error, retry }: { error: unknown; retry: 
 - `error` se tipa como **`unknown`**: los errores lanzados en Client Components pueden no ser instancias de `Error`.
 - En `error.tsx` no se muestra `error.message` al usuario, porque en producción puede contener información interna. Se puede mostrar `error.digest` como **código de referencia**, porque coincide con el registro del servidor.
 - Los errores en el navegador se registran con `reportClientError` (`shared/lib/report-client-error.ts`), ya que `logger` solo escribe en el servidor.
+- Los `error.tsx` de cada segmento usan **`RouteErrorView`** (`shared/components/ui/RouteErrorView.tsx`), que centraliza el registro, el `ErrorState` con `retry()`, el enlace alternativo y el código de referencia. Cada `error.tsx` solo define su título, mensaje y enlace. Todo segmento con `page.tsx` que obtiene datos tiene el suyo: `/explore`, `/favorites`, `/country/[code]` y `/country/[code]/places`.
 
 ### 2.8 Hooks de cliente
 
@@ -540,6 +541,7 @@ La información del país (REST Countries) es la **fuente principal**. Clima (Op
 - **Los Client Components consumen datos solo a través de `/api/*`**. Nunca llaman directo a una API externa.
 - **Los Server Components llaman directo al service del feature** (vía `server.ts`), no a su propio `/api/*`. Hacer una petición HTTP al propio servidor desde el servidor es un salto innecesario y una mala práctica en Next.js.
 - Route Handlers y Server Components usan **el mismo service**, así que la lógica no se duplica.
+- **Los Route Handlers públicos no son proxies abiertos.** `/api/places` y `/api/weather` solo aceptan coordenadas dentro de los 7 países de Centroamérica (`isInCentralAmerica`, en `features/countries/utils/centralAmericaBounds.ts`), y si no responden **400** sin consultar la API externa. Así nadie puede agotar la cuota de las keys pidiendo coordenadas de cualquier parte del mundo. Todo Route Handler nuevo que reciba parámetros que lleguen a una API con cuota debe limitarlos al dominio de la app.
 
 ```
 Client Component ──► /api/places (Route Handler) ──► places.service ──► Geoapify
@@ -586,11 +588,14 @@ export default function ExplorePage() {
 
 - Se diseña primero para móvil y luego se amplía con breakpoints: `base` → `sm` → `md` → `lg` → `xl`.
 - Las grillas se adaptan: 1 columna en móvil, 2 en tablet y 3 o 4 en escritorio.
+- El ancho de página lo define **solo** la utilidad `page-container` (`app/globals.css`): todo el ancho menos 16px por lado en móvil, 90% desde 640px y 80% desde 1024px. Navbar, `<main>` y Footer la usan para quedar alineados.
 - La navegación tiene menú hamburguesa en móvil y barra horizontal en escritorio.
 - No debe existir scroll horizontal en ningún ancho de pantalla (mínimo 320px).
 - Los elementos táctiles miden al menos 44×44px.
 - Las imágenes usan `next/image` con `sizes` definido. Los dominios externos se configuran en `images.remotePatterns` de `next.config.ts`.
 - **Accesibilidad:** HTML semántico (`header`, `nav`, `main`, `section`, `footer`), `alt` descriptivo en imágenes, foco visible y contraste suficiente.
+  - **Foco en tarjetas enlazadas:** `Card` usa `overflow-hidden`, que recorta el contorno de foco de un enlace interno. Por eso las tarjetas con `interactive` dibujan un anillo en la tarjeta completa (`has-[a:focus-visible]:ring-2`), y el enlace interno lleva `focus-visible:outline-none`.
+  - **Contraste:** el texto, incluidos los `placeholder`, usa como mínimo `text-muted`, que cumple 4.5:1 sobre `background` y `surface`. No se usan opacidades (`text-muted/70`) en textos.
 
 ### 3.7 Estados de carga y estados vacíos
 

@@ -19,7 +19,12 @@ export function Card({ children, as: Tag = 'div', padding = 'md', interactive = 
       className={cn(
         'overflow-hidden rounded-2xl border border-border bg-surface shadow-sm',
         padding === 'md' && 'p-5 sm:p-6',
-        interactive && 'transition hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0',
+        interactive && [
+          'transition hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0',
+          // Foco visible (AGENTS.md 3.6): `overflow-hidden` recortaría el contorno del enlace interno,
+          // así que el anillo se dibuja en la tarjeta completa cuando su enlace recibe foco con teclado.
+          'has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-ring has-[a:focus-visible]:ring-offset-2 has-[a:focus-visible]:ring-offset-background',
+        ].join(' '),
         className,
       )}
     >

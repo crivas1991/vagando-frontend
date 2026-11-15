@@ -4,6 +4,10 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  images: {
+    // Dominios externos permitidos para next/image (AGENTS.md 4.4).
+    remotePatterns: [new URL('https://flags.restcountries.com/v5/**')],
+  },
   turbopack: {
     rules: {
       "*.css": {

@@ -22,7 +22,7 @@
   --border: #e6ddd0;
 
   --primary: #0f766e; /* laguna */
-  --primary-hover: #115e59;
+  --primary-hover: #134e4a; /* verde laguna profunda: hover de todos los botones */
   --primary-foreground: #ffffff;
   --primary-soft: #ccfbf1;
 
@@ -47,7 +47,7 @@
     --border: #26404a;
 
     --primary: #2dd4bf;
-    --primary-hover: #5eead4;
+    --primary-hover: #0d9488; /* en modo oscuro también se oscurece al pasar el mouse */
     --primary-foreground: #042f2e;
     --primary-soft: #134e4a;
 
@@ -89,6 +89,15 @@
   /* Fuentes cargadas con next/font en app/layout.tsx */
   --font-sans: var(--font-jakarta);
   --font-display: var(--font-fraunces);
+}
+
+/*
+ * Contenedor de página: 80% del ancho de la ventana, centrado.
+ * Lo usan Navbar, Footer y <main> para que todo quede alineado.
+ */
+@utility page-container {
+  width: 80%;
+  margin-inline: auto;
 }
 
 /* Foco visible y consistente en toda la app (accesibilidad) */

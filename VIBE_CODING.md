@@ -512,6 +512,92 @@ f37ccc6 feat(shared): agregar manejo de errores, cliente HTTP y validación de e
 
 ---
 
+### Paso 6 — Feature `countries`, `/api/countries` y página de inicio
+
+**Objetivo:** implementar el primer feature con datos reales: schema, service, componentes, Route Handler y la página de inicio.
+
+**Prompt principal:**
+> "Siguiendo AGENTS.md, implementa el feature countries: schemas/country.schema.ts (schema zod con solo los campos que usamos: name, cca3, flags, capital, capitalInfo.latlng, population, region, subregion, currencies, languages, latlng); types derivados con z.infer; services/countries.service.ts ('server-only'): getCentralAmericaCountries() y getCountryByCode(code), usando fetchJson y el parámetro ?fields= de REST Countries. Si no existe el país, lanzar AppError NOT_FOUND. Usa caché de Next (revalidate: 86400) porque estos datos casi no cambian; components: CountryCard, CountryGrid; Route Handler app/api/countries/route.ts con query param opcional ?q= para filtrar por nombre, validado con zod, usando handleRouteError. Exporta lo público en features/countries/index.ts. Luego crea la página app/page.tsx (Server Component) con un hero y la grilla de países destacados."
+
+> **Nota de proceso:** primero se envió por error el prompt del Paso 7 (`/explore`). La IA detectó que dependía de `/api/countries`, que todavía no existía, y se retomó el orden correcto de la guía.
+
+**Adaptaciones al prompt (el prompt se escribió para REST Countries v3.1):**
+
+| El prompt pedía | Se implementó | Motivo |
+|---|---|---|
+| Campos `name`, `cca3`, `flags`, `capital`, `capitalInfo.latlng`, `latlng` | `names`, `codes.alpha_3`, `flag`, `capitals[].coordinates`, `coordinates` | Son los nombres de la **v5** (la v3.1 está dada de baja). Se verificaron con la key de demo `rc_live_demo` |
+| Parámetro `?fields=` | `?response_fields=` | Así se llama en la v5 |
+| `revalidate: 86400` | `'use cache'` + `cacheLife('days')` | Con `cacheComponents` la caché se declara en la función. `days` revalida cada 1 día, el equivalente a 86400 s |
+| `getCountryByCode(code)` con su propia petición | Busca dentro de la lista cacheada | Ahorra cuota: el plan gratuito tiene **1000 peticiones/mes** |
+
+**Archivos creados:**
+
+| Archivo | Descripción |
+|---|---|
+| `features/countries/schemas/country.schema.ts` | `restCountrySchema` (formato v5) → `countrySchema` (transforma al modelo de la app, con **nombres en español**); envoltorio de respuesta; `countriesQuerySchema`; `countryCodeSchema` |
+| `features/countries/types/country.types.ts` | `Country`, `CountriesQuery` y `CountriesResponse`, derivados con `z.infer` |
+| `features/countries/services/countries.service.ts` | `getCentralAmericaCountries` (cacheada), `searchCountries` y `getCountryByCode` |
+| `features/countries/utils/constants.ts` | `CENTRAL_AMERICA_CODES` (lista blanca de los 7 países) |
+| `features/countries/utils/filterCountries.ts` | Búsqueda sin tildes ni mayúsculas por nombre (ES/EN), capital o código |
+| `features/countries/utils/formatPopulation.ts` | `6029976` → `"6 M"` y `"6.029.976"` |
+| `features/countries/components/CountryCard.tsx` | Tarjeta con bandera (`next/image`), capital, población e idioma |
+| `features/countries/components/CountryGrid.tsx` | Grilla responsive con `EmptyState` si no hay países |
+| `features/countries/components/CountriesHero.tsx` | Portada con banderas, datos reales (7 países, población total) y CTAs *(extra)* |
+| `app/api/countries/route.ts` | `GET /api/countries?q=` |
+| `app/page.tsx` | Inicio real: hero + grilla (reemplaza la vista previa del Paso 4) |
+| `next.config.ts` | `remotePatterns` para `flags.restcountries.com` |
+
+**Iteraciones:**
+
+| # | Qué se hizo | Resultado | Ajuste / revisión |
+|---|---|---|---|
+| 1 | La IA consultó la forma real de la v5 con la key de demo (sin gastar cuota) y la documentación de endpoints y errores | Los campos cambiaron de nombre, la búsqueda por código **no devuelve 404** sino una lista vacía, y existen traducciones al español | El service detecta la lista vacía y lanza `NOT_FOUND` por su cuenta |
+| 2 | Se generó el código | `tsc` y `lint` OK, pero la IA había usado imports `../schemas/...` | Corregido a `@/features/countries/...` por la regla 1.7 de `AGENTS.md` |
+| 3 | Prueba con la **key real** a través de `/api/countries` | 7 países con nombres en español (Belice, Panamá...) | — |
+| 4 | Pruebas de búsqueda | Funcionan `salv`, `PANAMA` sin tilde, la capital `managua`, el nombre en inglés `belize` y el vacío `zzzz`, y un texto de 51 caracteres → **400** | — |
+| 5 | Verificación de seguridad | La key **no aparece** ni en el HTML ni en la respuesta de la API | — |
+| 6 | Build de producción | **Bug encontrado:** `handleRouteError` capturaba una **señal interna de Next.js** ("bail out of prerendering") y la registraba como "Error no controlado" | Se agregó `unstable_rethrow(error)` en `handleRouteError` (documentación oficial) y se documentó en `AGENTS.md` 2.5 |
+| 7 | Build con una **key inválida** (simulando Vercel sin variables) | El build falla al prerenderizar `/` | Es el comportamiento deseado: se documentó en `AGENTS.md` 3.8 que las keys deben configurarse antes del deploy |
+| 8 | **Ajuste visual pedido por el desarrollador** tras revisar la página: *"que la card tenga el 90% del ancho de la página y los mouse over de los botones en un verde más oscuro"* | Se creó la utilidad `page-container` (`width: 80%`; primero se probó con 90% y el desarrollador pidió reducirlo a 80%), usada por `<main>`, Navbar y Footer para que todo quede alineado. El token `--primary-hover` pasó a `#134e4a`, y **todos** los botones (primary, secondary, ghost y el botón del menú móvil) usan ese verde con texto blanco en hover | Se reemplazó `max-w-6xl` en los 3 contenedores; el gradiente del hero también se oscurece, porque usa el mismo token |
+
+**Decisiones técnicas:**
+
+| Decisión | Motivo |
+|---|---|
+| **Una sola petición** a `/subregion/Central America`, cacheada 1 día | Con 1000 peticiones/mes, buscar y abrir países no debe consumir cuota. La página de inicio queda **prerenderizada** (`Revalidate 1d`) |
+| Lista blanca `CENTRAL_AMERICA_CODES` | La subregión de la ONU también incluye a México; Vagando cubre solo los 7 países del istmo |
+| Validar cada país por separado (`safeParse`) | Si un país viene con formato inesperado, se omite solo ese (con `logger.warn`) en lugar de romper toda la lista |
+| `countrySchema` transforma al modelo propio | Los componentes no dependen del formato de la API; si la API vuelve a cambiar, solo se toca el schema |
+| Nombres en español desde `names.translations.spa` | La interfaz es en español; el nombre en inglés se conserva para la búsqueda |
+| Código inválido (`X1`) → `NOT_FOUND` y no `BAD_REQUEST` | Para el usuario es un destino que no existe, así que debe ver la página 404 |
+| `next/image` sin `preload` en la grilla | En Next 16 `priority` está deprecado y `preload` no se recomienda cuando varias imágenes compiten por el LCP |
+| `server.ts` importa `server-only` | Doble protección para que los services nunca lleguen al navegador |
+| Ancho de página como **utilidad única** (`@utility page-container` en `globals.css`) | Cambiar el ancho en un solo lugar mantiene alineados el Navbar, el contenido y el Footer |
+| Hover de botones con el **token** `--primary-hover` y no con un color fijo | El cambio se aplica a todos los botones a la vez y funciona en modo oscuro (`#0d9488`) |
+
+**Desafíos y soluciones:**
+
+| Desafío | Solución con apoyo de la IA |
+|---|---|
+| El prompt usaba campos y parámetros de la v3.1, que ya no existe | Se investigó la v5 con la key de demo y su documentación, y se adaptó todo el schema |
+| `handleRouteError` "se tragaba" señales internas de Next.js | `unstable_rethrow(error)` como primera línea; ahora todos los Route Handlers quedan protegidos |
+| Las capitales vienen en inglés ("Guatemala City", "Panama City") | La v5 no traduce las capitales. Se muestran tal como vienen (es una limitación conocida) |
+
+**Validación:**
+- [x] `npx tsc --noEmit`: sin errores
+- [x] `npm run lint`: sin errores
+- [x] `npm run build`: exitoso; `/` estática con revalidación de 1 día y `/api/countries` dinámica
+- [x] `/api/countries`: búsqueda, vacío y error 400 probados
+- [x] La key no se expone en HTML ni en las respuestas
+- [x] Build con key inválida → falla de forma controlada
+
+**Commit:**
+```
+(pendiente de autorización)
+```
+
+---
+
 <!--
 PLANTILLA PARA LOS SIGUIENTES PASOS (copiar y completar)
 

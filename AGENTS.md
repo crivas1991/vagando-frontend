@@ -331,6 +331,8 @@ export async function GET(request: NextRequest) {
 }
 ```
 
+> **No capturar las señales internas de Next.js:** `notFound()`, `redirect()` y las APIs de petición (`searchParams`, `cookies()`, `headers()`) lanzan errores internos que Next.js usa como señales de control, por ejemplo para marcar una ruta como dinámica durante el prerenderizado. `handleRouteError` llama a **`unstable_rethrow(error)`** al inicio para devolvérselos a Next.js. Cualquier otro `try/catch` en Server Components o Route Handlers que pueda envolver estas llamadas debe hacer lo mismo.
+
 ### 2.6 Seguridad en los errores
 
 **Nunca** se envía al cliente:
@@ -574,6 +576,7 @@ GEOAPIFY_API_KEY=your_geoapify_api_key_here               # https://myprojects.g
 - Las variables se leen **solo** a través de `shared/lib/env.ts` (validado con zod), nunca con `process.env` directo en el resto del código.
 - Las keys no se hardcodean, no se registran en logs, no aparecen en mensajes de error y no se comparten en capturas ni en chats.
 - En producción (Vercel), las variables se configuran en **Settings → Environment Variables**.
+- **Las keys deben existir también durante el build.** La página de inicio se prerenderiza con datos de REST Countries, así que si `REST_COUNTRIES_API_KEY` falta o es inválida, el build falla (`Error occurred prerendering page "/"`). Es intencional: evita publicar un sitio roto. En Vercel, las variables se configuran **antes** del primer deploy.
 
 ### 3.9 `params` y `searchParams` son `Promise` en Next 16
 
@@ -712,8 +715,8 @@ feat: muchas cosas nuevas y arreglos varios.
 
 - **Todas** las imágenes usan `next/image`. Prohibida la etiqueta `<img>`.
 - Se define `width` y `height`, o bien `fill` junto con `sizes`, para evitar saltos de layout (CLS).
-- La imagen principal visible al cargar la página (hero) lleva `priority`.
-- Los dominios externos (por ejemplo, las banderas de `flagcdn.com`) se declaran en `images.remotePatterns` de `next.config.ts`.
+- La imagen principal visible al cargar la página (la que define el LCP) lleva **`preload`**. En Next 16, `priority` está **deprecado** y no se usa. Tampoco se pone `preload` en grillas donde cualquier tarjeta podría ser la imagen principal.
+- Los dominios externos (por ejemplo, las banderas de `flags.restcountries.com`) se declaran en `images.remotePatterns` de `next.config.ts`.
 - Si una imagen externa puede faltar (lugares sin foto), se muestra una imagen o ilustración de respaldo.
 
 ### 4.5 Texto alternativo (`alt`)

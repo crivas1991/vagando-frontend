@@ -9,8 +9,8 @@ const base =
 
 const variants: Record<ButtonVariant, string> = {
   primary: 'bg-primary text-primary-foreground hover:bg-primary-hover',
-  secondary: 'border border-border bg-surface text-foreground hover:bg-surface-muted',
-  ghost: 'text-foreground hover:bg-surface-muted',
+  secondary: 'border border-border bg-surface text-foreground hover:border-primary-hover hover:bg-primary-hover hover:text-primary-foreground',
+  ghost: 'text-foreground hover:bg-primary-hover hover:text-primary-foreground',
 };
 
 /** Clases de botón reutilizables, también para `<Link>` con apariencia de botón. */

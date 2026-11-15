@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { unstable_rethrow } from 'next/navigation';
 import { NextResponse } from 'next/server';
 
 import type { ApiErrorBody } from '@/shared/types/api.types';
@@ -18,6 +19,10 @@ import { logger } from './logger';
 const GENERIC_ERROR_MESSAGE = 'Ocurrió un error inesperado. Intenta de nuevo más tarde.';
 
 export function handleRouteError(error: unknown): NextResponse<ApiErrorBody> {
+  // Next.js usa errores internos como señales de control (prerenderizado, notFound(), redirect()).
+  // No son fallas de la app: se devuelven a Next.js para que los maneje él mismo.
+  unstable_rethrow(error);
+
   if (isAppError(error)) {
     const log = error.status >= 500 ? logger.error : logger.warn;
     log(`[${error.code}] ${error.message}`, error.cause);

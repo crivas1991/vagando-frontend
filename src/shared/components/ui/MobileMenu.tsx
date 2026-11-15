@@ -40,7 +40,7 @@ export function MobileMenu({ children }: MobileMenuProps) {
         aria-controls={panelId}
         aria-label={isOpen ? 'Cerrar menú' : 'Abrir menú'}
         onClick={() => setIsOpen((open) => !open)}
-        className="inline-flex size-11 items-center justify-center rounded-full text-foreground hover:bg-surface-muted"
+        className="inline-flex size-11 items-center justify-center rounded-full text-foreground transition-colors hover:bg-primary-hover hover:text-primary-foreground"
       >
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-6">
           {isOpen ? (

@@ -41,7 +41,7 @@ Para cada paso se registran:
 |---|---|---|---|---|
 | 1 | Paso 1 | `21d812a` | `docs: agregar AGENTS.md con reglas del proyecto` | Commit inicial: reglas de arquitectura, manejo de errores, requisitos, convenciones y testing |
 | 2 | Paso 2 | `cee082d` | `chore: inicializar proyecto Next.js 16 con estructura por features` | Proyecto Next.js 16.4, estructura de features y shared, zod, server-only, `.gitignore` y `AGENTS.md` combinado |
-| 3 | Pasos 0–2 | *(ver `git log`)* | `docs: agregar VIBE_CODING.md con registro del proceso` | Este documento con el registro de los pasos 0, 1 y 2 |
+| 3 | Pasos 0–2 | `ba71e58` | `docs: agregar VIBE_CODING.md con registro del proceso` | Este documento con el registro de los pasos 0, 1 y 2 |
 
 > Esta tabla se actualiza con cada commit nuevo. El hash de un commit que modifica este archivo se completa en el commit siguiente, porque un commit no puede contener su propio hash.
 
@@ -80,7 +80,7 @@ Para cada paso se registran:
 
 | API | Uso | ¿Usa key? |
 |---|---|---|
-| [REST Countries](https://restcountries.com) | Datos del país: bandera, capital, moneda, idiomas, coordenadas | No |
+| [REST Countries](https://restcountries.com) | Datos del país: bandera, capital, moneda, idiomas, coordenadas | No *(en el Paso 3 se descubrió que la v5 sí la requiere)* |
 | [Open-Meteo](https://open-meteo.com) | Clima actual y pronóstico | No |
 | [Geoapify Places](https://www.geoapify.com/places-api) | Lugares turísticos cercanos | Sí |
 
@@ -256,6 +256,92 @@ npm run build
 **Commit:**
 ```
 cee082d chore: inicializar proyecto Next.js 16 con estructura por features
+```
+
+---
+
+### Paso 3 — Capa compartida: errores, HTTP, entorno y logger
+
+**Objetivo:** construir en `src/shared/lib` la base del manejo de errores que usarán todos los features.
+
+**Prompt principal:**
+> "Siguiendo AGENTS.md, implementa en src/shared/lib: errors.ts (clase AppError + type guard isAppError); http.ts (función fetchJson&lt;T&gt;(url, schema, options) que use AbortSignal.timeout(10000), valide res.ok, mapee 400/404/429/5xx a AppError y valide la respuesta con el schema zod); env.ts (validación con zod de GEOAPIFY_API_KEY, solo servidor, con 'server-only'); logger.ts (logger simple con error, warn e info que solo registre en servidor); api-response.ts (helper handleRouteError(error) que devuelva NextResponse.json con el formato { error: { code, message } } y el status correcto, sin exponer detalles internos). Crea también .env.example documentado. Explícame brevemente cada archivo."
+
+**Archivos creados:**
+
+| Archivo | Responsabilidad |
+|---|---|
+| `src/shared/lib/errors.ts` | `AppError` con código y status (el status sale por defecto del código) e `isAppError` |
+| `src/shared/lib/http.ts` | `fetchJson`: timeout, `res.ok`, conversión de errores HTTP, validación con zod. Es `server-only` |
+| `src/shared/lib/env.ts` | `getServerEnv()`: valida `REST_COUNTRIES_API_KEY` y `GEOAPIFY_API_KEY` con zod la primera vez que se usa. Es `server-only` |
+| `src/shared/lib/logger.ts` | Logger JSON que solo escribe en el servidor y oculta keys y tokens de URLs y mensajes |
+| `src/shared/lib/api-response.ts` | `handleRouteError`: respuesta uniforme `{ error: { code, message } }` |
+| `src/shared/types/api.types.ts` | Tipo `ApiErrorBody`, que compartirán los Route Handlers y los hooks de cliente |
+| `.env.example` | Documentación de `REST_COUNTRIES_API_KEY` y `GEOAPIFY_API_KEY` |
+
+**Iteraciones:**
+
+| # | Qué se hizo | Resultado | Ajuste / revisión |
+|---|---|---|---|
+| 1 | Antes de escribir código, la IA leyó la documentación incluida en `node_modules/next/dist/docs/` (lo exige el bloque de Next.js en `AGENTS.md`) | Descubrió que con `cacheComponents: true` la caché se configura con `'use cache'` y `cacheLife()`, no con `next: { revalidate }` | `fetchJson` no recibe opciones de caché. Se actualizó `AGENTS.md` 2.3 |
+| 2 | Se generaron los 6 archivos y el `.env.example` | `tsc`, `lint` y `build` sin errores | — |
+| 3 | Se creó una **ruta temporal de prueba** (`/api/dev-test`) para provocar cada tipo de error y verlo funcionando | 6 de 8 casos respondieron como se esperaba | Los casos `ok` y `notfound` contra REST Countries fallaron (ver desafíos) |
+| 4 | Se eliminó la ruta de prueba y se limpió `.next` | Build limpio | Los tipos que Next genera para las rutas quedaron obsoletos tras borrar la ruta, y se resolvió borrando `.next` |
+
+**Pruebas del manejo de errores (ruta temporal):**
+
+| Caso | Cómo se provocó | Respuesta al cliente | ¿Correcto? |
+|---|---|---|---|
+| Timeout | `timeoutMs: 1` | `502 UPSTREAM_ERROR` "tardó demasiado en responder" | ✅ |
+| Red caída | Dominio inexistente | `502 UPSTREAM_ERROR` "No pudimos conectar" | ✅ |
+| Key inválida | Geoapify con key falsa (HTTP 401) | `502 UPSTREAM_ERROR` "rechazó la solicitud", **sin mencionar la key** | ✅ |
+| Respuesta inesperada | Schema que no coincide con la respuesta | `502 UPSTREAM_ERROR` "respuesta inesperada" | ✅ |
+| Variable de entorno faltante | Sin `.env.local` | `500 INTERNAL` mensaje genérico; el log del servidor dice qué variable falta | ✅ |
+| Error no controlado | `throw new Error('...detalle secreto')` | `500 INTERNAL` mensaje genérico; el detalle secreto **no** llega al cliente | ✅ |
+| Seguridad en logs | Revisión del log de Geoapify | El log registra `https://api.geoapify.com/v2/places`, sin la key | ✅ |
+
+**Decisiones técnicas:**
+
+| Decisión | Motivo |
+|---|---|
+| El `status` de `AppError` tiene un valor por defecto según el código | Evita inconsistencias (por ejemplo, `NOT_FOUND` con status 500) |
+| Si la API externa responde 401/403, se convierte en `UPSTREAM_ERROR` (502) y no en 401 | El problema es de nuestra credencial, no del usuario. Responder 401 lo confundiría |
+| Las URLs se guardan sin query params en `cause` y en los logs, y además el logger aplica `redact()` | Doble protección para que la key nunca termine en un log |
+| `fetchJson` respeta un `signal` externo y no lo convierte en error | Si quien llama cancela la petición, no es una falla y no debe aparecer como error |
+| `env.ts` valida de forma **perezosa** (`getServerEnv()`) | Si validara al importarse, el build fallaría en Vercel antes de configurar la key |
+| `env.ts` rechaza el valor de ejemplo `your_geoapify_api_key_here` | Detecta cuando se copió `.env.example` sin reemplazar el valor |
+| `http.ts`, `env.ts` y `api-response.ts` usan `server-only`; `logger.ts` y `errors.ts` no | `errors.ts` y `logger.ts` se pueden usar en cliente sin riesgo (el logger no escribe nada en el navegador) |
+| `ApiErrorBody` vive en `shared/types` | Así los hooks de cliente pueden leer el error sin importar código de servidor |
+
+**Desafíos y soluciones:**
+
+| Desafío | Solución con apoyo de la IA |
+|---|---|
+| **`cacheComponents` cambia el modelo de caché de Next.js 16.** Nuestro `AGENTS.md` asumía `fetch(..., { next: { revalidate } })` | La IA leyó la documentación local de Next antes de programar y ajustó tanto la firma de `fetchJson` como la regla en `AGENTS.md` |
+| **REST Countries v3.1 está deprecada.** La API ahora redirige (301) a una respuesta `200` con `{ "success": false, "errors": [...] }` en lugar de datos. La v5 está en `api.restcountries.com` y **requiere API key** (plan gratuito de 1000 peticiones al mes) | La prueba lo detectó gracias a la validación con zod: sin el schema, la app habría intentado usar un objeto de error como si fuera un país. La IA investigó la documentación oficial de la v5 y planteó dos opciones: **(A)** obtener una key gratuita de la v5 o **(B)** guardar los datos de los 7 países en un JSON local. **Se eligió la opción A** para mantener una API real (ver la decisión abajo) |
+
+**Decisión: migrar a REST Countries v5 (opción A)**
+
+| Aspecto | Detalle |
+|---|---|
+| Base URL | `https://api.restcountries.com/countries/v5` |
+| Autenticación | Header `Authorization: Bearer <key>`. La documentación oficial lo recomienda sobre el query param `api-key`, porque así la key no queda en logs ni en el historial |
+| Límites del plan gratuito | 1000 peticiones/mes y 20 peticiones cada 10 s (si se excede, responde 429). Al agotar la cuota mensual, y tras un periodo de gracia, responde 403 |
+| Formato de respuesta | `{ data: { objects: [...] } }`, con campos renombrados (`names.common`, `codes.alpha_3`...). Se verificó con la key pública de demo `rc_live_demo`, que no consume cuota |
+| Impacto en el código | `env.ts` ahora valida dos variables (`REST_COUNTRIES_API_KEY` y `GEOAPIFY_API_KEY`) y rechaza cualquier valor que empiece con `your_` (valores de ejemplo) |
+| Impacto en la caché | Como la cuota es mensual y los países casi no cambian, el service de `countries` deberá cachear por largo tiempo con `'use cache'` + `cacheLife` |
+| Documentación actualizada | `AGENTS.md` (tabla de APIs, 2.3 y 3.8), `.env.example` y este documento |
+
+**Validación:**
+- [x] `npx tsc --noEmit`: sin errores
+- [x] `npm run lint`: sin errores
+- [x] `npm run build`: build exitoso
+- [x] Los casos de error probados en tiempo de ejecución se comportan como se esperaba
+- [x] Se eliminó la ruta temporal de prueba
+
+**Commit:**
+```
+(pendiente de autorización)
 ```
 
 ---

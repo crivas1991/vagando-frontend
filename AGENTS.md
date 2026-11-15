@@ -21,11 +21,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **Stack:** Next.js 16 (App Router), TypeScript y Tailwind CSS
 - **APIs consumidas:**
 
-| API | Feature | Uso | ¿Usa key? |
-|---|---|---|---|
-| [REST Countries](https://restcountries.com) | `countries` | Datos del país: bandera, capital, moneda, idiomas, coordenadas | No |
-| [Open-Meteo](https://open-meteo.com) | `weather` | Clima actual y pronóstico | No |
-| [Geoapify Places API](https://www.geoapify.com/places-api) | `places` | Lugares turísticos cercanos | Sí |
+| API | Feature | Uso | Key | Base URL | Límites (plan gratuito) |
+|---|---|---|---|---|---|
+| [REST Countries v5](https://restcountries.com/docs/countries) | `countries` | Datos del país: bandera, capital, moneda, idiomas, coordenadas | Sí: `REST_COUNTRIES_API_KEY`, enviada en el header `Authorization: Bearer <key>` | `https://api.restcountries.com/countries/v5` | 1000 peticiones/mes y 20 peticiones cada 10 s |
+| [Open-Meteo](https://open-meteo.com) | `weather` | Clima actual y pronóstico | No | `https://api.open-meteo.com/v1` | Uso no comercial gratuito |
+| [Geoapify Places API](https://www.geoapify.com/places-api) | `places` | Lugares turísticos cercanos | Sí: `GEOAPIFY_API_KEY`, enviada como query param `apiKey` | `https://api.geoapify.com/v2` | 3000 peticiones/día |
+
+> **REST Countries:** las versiones v1–v4 (`restcountries.com/v3.1/...`) fueron dadas de baja y ya no devuelven datos. Solo se usa la **v5**. Sus respuestas vienen dentro de `{ data: { objects: [...] } }` y los nombres de los campos cambiaron (por ejemplo, `names.common` y `codes.alpha_3`). Como la cuota es mensual, los datos de países se cachean por largo tiempo (los países casi no cambian).
 
 ---
 
@@ -252,7 +254,7 @@ export const isAppError = (error: unknown): error is AppError => error instanceo
 |---|---|
 | 404 | `NOT_FOUND` |
 | 429 | `RATE_LIMITED` |
-| 401 / 403 (key inválida) | `UPSTREAM_ERROR` (sin mencionar la key en el mensaje) |
+| 401 / 403 (key inválida o cuota mensual agotada) | `UPSTREAM_ERROR` (sin mencionar la key en el mensaje) |
 | 5xx, error de red o timeout | `UPSTREAM_ERROR` |
 | Respuesta que no pasa la validación de zod | `UPSTREAM_ERROR` |
 
@@ -261,11 +263,13 @@ export const isAppError = (error: unknown): error is AppError => error instanceo
 ```ts
 // Firma esperada
 export async function fetchJson<T>(
-  url: string,
-  schema: z.ZodType<T>,
-  init?: RequestInit & { next?: { revalidate?: number } },
+  url: string | URL,
+  schema: ZodType<T>,
+  options?: RequestInit & { timeoutMs?: number },
 ): Promise<T>;
 ```
+
+> **Caché con `cacheComponents`:** el proyecto tiene `cacheComponents: true` en `next.config.ts`. En este modo, la caché **no** se configura en `fetch` (`next: { revalidate }`), sino en las funciones de los services con la directiva `'use cache'` y `cacheLife()`. Por eso `fetchJson` no recibe opciones de caché. Ver `node_modules/next/dist/docs/01-app/03-api-reference/01-directives/use-cache.md`.
 
 > Cuidado: las URLs con API key **no se registran completas** en el logger. Se registra el host y la ruta, nunca los query params sensibles.
 
@@ -277,7 +281,7 @@ Se valida con zod en tres puntos de entrada de datos:
 |---|---|---|
 | Respuestas de APIs externas | `features/<feature>/schemas/*.schema.ts` | `UPSTREAM_ERROR` |
 | Query params y params de ruta | Route Handlers y services | `BAD_REQUEST` |
-| Variables de entorno | `shared/lib/env.ts` | Error al iniciar, con mensaje que indica qué variable falta (sin mostrar su valor) |
+| Variables de entorno | `shared/lib/env.ts` (`getServerEnv()`) | `INTERNAL` la primera vez que se leen. El log indica qué variable falta, sin mostrar su valor |
 
 - Los tipos del feature se derivan de los schemas con `z.infer` (una sola fuente de verdad).
 - Los schemas de respuestas externas solo declaran los campos que la app usa, y los campos que pueden faltar se marcan con `.optional()`.
@@ -546,11 +550,13 @@ export default function ExplorePage() {
 | `.env.example` | ✅ Sí | Nombres de las variables, valores de ejemplo y comentarios |
 
 ```bash
-# .env.example
-# API key de Geoapify Places. Se obtiene gratis en https://myprojects.geoapify.com
-# Solo se usa en el servidor. NUNCA agregar el prefijo NEXT_PUBLIC_.
-GEOAPIFY_API_KEY=your_geoapify_api_key_here
+# .env.example (resumen; el archivo real tiene la documentación completa)
+# Solo se usan en el servidor. NUNCA agregar el prefijo NEXT_PUBLIC_.
+REST_COUNTRIES_API_KEY=your_rest_countries_api_key_here   # https://restcountries.com/sign-up
+GEOAPIFY_API_KEY=your_geoapify_api_key_here               # https://myprojects.geoapify.com
 ```
+
+- Cuando la API lo permite, la key se envía en un **header** y no en la URL, para que no termine en logs ni en el historial (REST Countries usa `Authorization: Bearer`). Si la API solo acepta la key en la URL (Geoapify), el logger la oculta con `redact()`.
 
 - **Nunca se usa el prefijo `NEXT_PUBLIC_` para una API key.** Ese prefijo incluye el valor en el JavaScript que se envía al navegador.
 - Todo archivo en `features/*/services/` empieza con **`import 'server-only';`**. Así, si un Client Component lo importa por error, el build falla en lugar de exponer la key.
